@@ -151,14 +151,10 @@ public sealed class MapChooser : BasePlugin
         _state.EofVoteHappening = false;
         _state.NextMap = null;
         _state.RoundsPlayed = 0;
-        try
-        {
-            _state.MapStartTime = Core.Engine is { } e ? e.GlobalVars.CurrentTime : 0;
-        }
-        catch
-        {
-            _state.MapStartTime = 0;
-        }
+       var gameRules = Core.EntitySystem.GetGameRules();
+        bool engineReady = gameRules?.IsValid == true && Core.Engine != null;
+
+        _state.MapStartTime = engineReady ? Core.Engine!.GlobalVars.CurrentTime : 0;
 
         _state.RtvCooldownEndTime = null;
         _state.IsRtv = false;
@@ -173,8 +169,9 @@ public sealed class MapChooser : BasePlugin
         _state.MatchEnded = false;
         _state.EofVoteCompleted = false;
 
-        _mapCooldown.OnMapStart(@event.MapName, Core.Engine.WorkshopId);
-        _cycleManager.OnMapStart(@event.MapName, Core.Engine.WorkshopId ?? "");
+        string workshopId = engineReady ? Core.Engine!.WorkshopId : "";
+        _mapCooldown.OnMapStart(@event.MapName, workshopId);
+        _cycleManager.OnMapStart(@event.MapName, workshopId);
 
         _checkVoteTimer = Core.Scheduler.DelayAndRepeat(1000, 1000, () =>
         {
