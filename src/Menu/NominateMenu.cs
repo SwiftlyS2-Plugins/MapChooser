@@ -24,8 +24,7 @@ public class NominateMenu
     public void Show(IPlayer player, Action<IPlayer, string> onNominate)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
-        var currentMapId = _core.Engine.GlobalVars.MapName.ToString();
-        var currentWorkshopId = _core.Engine.WorkshopId;
+        _core.TryGetEngineSnapshot(out var currentMapId, out var currentWorkshopId, out _);
         var builder = _core.MenusAPI.CreateBuilder();
         builder.Design.SetMenuTitle(localizer["map_chooser.nominate.title"] ?? "Nominate a map:");
         var playerCount = _core.PlayerManager.GetAllPlayers()

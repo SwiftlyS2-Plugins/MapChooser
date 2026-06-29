@@ -20,8 +20,6 @@ public class AdminChangeMapMenu
     public void Show(IPlayer player, Action<IPlayer, string> onChangeMap)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
-        var currentMapId = _core.Engine.GlobalVars.MapName.ToString();
-        var currentWorkshopId = _core.Engine.WorkshopId;
         var builder = _core.MenusAPI.CreateBuilder();
         builder.Design.SetMenuTitle(localizer["map_chooser.change_map.title"] ?? "Change map to:");
         foreach (var map in _mapLister.Maps)

@@ -307,7 +307,7 @@ public class EndOfMapVoteManager
     {
         if (!_voteActive) return;
         var menu = new EndOfMapVoteMenu(_core, _mapCooldown);
-        var builtMenu = menu.Show(player, _mapsInVote, RegisterVote);
+        var builtMenu = menu.Show(player, _mapsInVote, RegisterVote, _config.DisableVoteMenuExit);
         _activeVoteMenus[player.Slot] = builtMenu;
     }
 

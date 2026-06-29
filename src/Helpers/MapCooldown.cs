@@ -44,11 +44,13 @@ public class MapCooldown
         // Find if this identity exists in history
         if (!_mapsOnCooldown.Contains(identity)) return false;
 
-        // Verify it's not the current map
-        if (_core.Engine == null) return false;
+        // Verify it's not the current map. During map transitions the engine
+        // pointer / GlobalVars / WorkshopId may all be null — bail safely.
+        if (!_core.TryGetEngineSnapshot(out var currentMapName, out var currentWorkshopId, out _))
+            return false;
 
-        var currentMapName = _core.Engine.GlobalVars.MapName.ToString().ToLower();
-        var currentWorkshopId = _core.Engine.WorkshopId.ToLower();
+        currentMapName = currentMapName.ToLower();
+        currentWorkshopId = currentWorkshopId.ToLower();
 
         if (identity == currentMapName || (!string.IsNullOrEmpty(currentWorkshopId) && identity == currentWorkshopId))
             return false;

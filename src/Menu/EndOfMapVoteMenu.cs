@@ -20,11 +20,15 @@ public class EndOfMapVoteMenu
         _mapCooldown = mapCooldown;
     }
 
-    public IMenuAPI Show(IPlayer player, List<string> mapsInVote, Action<IPlayer, string> onVote)
+    public IMenuAPI Show(IPlayer player, List<string> mapsInVote, Action<IPlayer, string> onVote, bool disableExit = false)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         var builder = _core.MenusAPI.CreateBuilder();
         builder.Design.SetMenuTitle(localizer["map_chooser.vote.title"] ?? "Vote for the next map:");
+        if (disableExit)
+        {
+            builder.DisableExit();
+        }
         foreach (var map in mapsInVote)
         {
             string displayName = map;
