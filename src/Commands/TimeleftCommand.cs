@@ -46,7 +46,8 @@ public class TimeleftCommand
 
         if (timelimit > 0)
         {
-            float timePlayed = _core.Engine.GlobalVars.CurrentTime - _state.MapStartTime;
+            float currentTime = _core.TryGetCurrentTime();
+            float timePlayed = currentTime - _state.MapStartTime;
             float timeRemaining = (timelimit * 60) - timePlayed;
 
             if (timeRemaining > 1)

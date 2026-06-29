@@ -144,6 +144,7 @@ public sealed class MapChooser : BasePlugin
 
     private void OnMapLoad(IOnMapLoadEvent @event)
     {
+        if (@event.MapName == null) return;
         if (string.IsNullOrEmpty(@event.MapName)) return;
 
         _eofManager?.ResetVote();
@@ -228,6 +229,7 @@ public sealed class MapChooser : BasePlugin
         _state.EofVoteCompleted = false;
         _state.IsRtv = false;
         _state.ChangeMapImmediately = false;
+        _state.QueuedRoundEndChange = false;
         _state.NextMap = null;
         _state.ExtendsLeft = _config.EndOfMap.ExtendLimit;
 
@@ -281,8 +283,17 @@ public sealed class MapChooser : BasePlugin
     private HookResult OnRoundEnd(EventRoundEnd @event)
     {
         _state.RoundsPlayed++;
-        if (_state.MapChangeScheduled && !_state.EofVoteHappening && !_state.ChangeMapImmediately && _state.IsRtv)
+
+        if (_config.DetailedLogging)
+            Core.Logger.LogInformation(
+                "MapChooser: OnRoundEnd scheduled={Scheduled} queuedRoundEnd={Queued} eofVote={Eof} immediate={Immediate} isRtv={IsRtv} nextMap={NextMap}",
+                _state.MapChangeScheduled, _state.QueuedRoundEndChange, _state.EofVoteHappening,
+                _state.ChangeMapImmediately, _state.IsRtv, _state.NextMap ?? "<null>");
+
+        if (_state.QueuedRoundEndChange && _state.MapChangeScheduled && !_state.EofVoteHappening)
         {
+            if (_config.DetailedLogging)
+                Core.Logger.LogInformation("MapChooser: OnRoundEnd firing queued ChangeMap for '{Map}'.", _state.NextMap ?? "<null>");
             _changeMapManager.ChangeMap();
         }
         else if (!_state.MapChangeScheduled)
@@ -295,7 +306,20 @@ public sealed class MapChooser : BasePlugin
 
     private void CheckAutomatedVote(bool force = false)
     {
+        try
+        {
+            CheckAutomatedVoteCore(force);
+        }
+        catch (Exception ex)
+        {
+            Core.Logger.LogError(ex, "MapChooser: CheckAutomatedVote threw");
+        }
+    }
+
+    private void CheckAutomatedVoteCore(bool force)
+    {
         if (!_config.EndOfMap.Enabled || _state.EofVoteHappening || _state.MapChangeScheduled || _state.WarmupRunning) return;
+        if (_state.MapSwitchInFlight) return;
 
         // Silent early exit if game is not fully initialized yet (MapStartTime is set in OnWarmupEnd/OnMatchStart)
         // This prevents spamming logs with GameRules exceptions during early map load
@@ -357,14 +381,7 @@ public sealed class MapChooser : BasePlugin
 
         if (!trigger && winlimit > 0)
         {
-            var teams = Core.EntitySystem.GetAllEntitiesByClass<CCSTeam>();
-            int maxTeamScore = 0;
-            foreach (var team in teams)
-            {
-                int score = team.ScoreFirstHalf + team.ScoreSecondHalf + team.ScoreOvertime;
-                if (score > maxTeamScore) maxTeamScore = score;
-            }
-
+            int maxTeamScore = TryGetMaxTeamScore();
             if (winlimit - maxTeamScore <= _config.EndOfMap.TriggerRoundsBeforeEnd)
             {
                 trigger = true;
@@ -375,14 +392,7 @@ public sealed class MapChooser : BasePlugin
         if (!trigger && winlimit == 0 && maxrounds > 0)
         {
             int effectiveWinlimit = maxrounds / 2 + 1;
-            var teams = Core.EntitySystem.GetAllEntitiesByClass<CCSTeam>();
-            int maxTeamScore = 0;
-            foreach (var team in teams)
-            {
-                int score = team.ScoreFirstHalf + team.ScoreSecondHalf + team.ScoreOvertime;
-                if (score > maxTeamScore) maxTeamScore = score;
-            }
-
+            int maxTeamScore = TryGetMaxTeamScore();
             if (effectiveWinlimit - maxTeamScore <= _config.EndOfMap.TriggerRoundsBeforeEnd)
             {
                 trigger = true;
@@ -396,6 +406,31 @@ public sealed class MapChooser : BasePlugin
             if (Core.Engine != null)
                 _state.NextEofVotePossibleTime = Core.Engine.GlobalVars.CurrentTime + _config.EndOfMap.VoteDuration + 1;
             _eofManager.StartVote(_config.EndOfMap.VoteDuration, _config.EndOfMap.MapsToShow);
+        }
+    }
+
+    /// <summary>
+    /// Safely read the highest team score. The entity system can throw if it
+    /// isn't fully initialised yet (e.g. during early map load), so swallow
+    /// and return 0 in that case.
+    /// </summary>
+    private int TryGetMaxTeamScore()
+    {
+        try
+        {
+            var teams = Core.EntitySystem.GetAllEntitiesByClass<CCSTeam>();
+            int maxTeamScore = 0;
+            foreach (var team in teams)
+            {
+                int score = team.ScoreFirstHalf + team.ScoreSecondHalf + team.ScoreOvertime;
+                if (score > maxTeamScore) maxTeamScore = score;
+            }
+            return maxTeamScore;
+        }
+        catch (Exception ex)
+        {
+            Core.Logger.LogWarning(ex, "MapChooser: failed to read team scores");
+            return 0;
         }
     }
 
@@ -427,5 +462,27 @@ public sealed class MapChooser : BasePlugin
 
     public override void Unload()
     {
+        try
+        {
+            _checkVoteTimer?.Cancel();
+            _checkVoteTimer = null;
+
+            _changeMapManager?.CancelPending();
+
+            Core.Event.OnMapLoad -= OnMapLoad;
+
+            Core.GameEvent.UnhookPost<EventRoundEnd>();
+            Core.GameEvent.UnhookPost<EventRoundStart>();
+            Core.GameEvent.UnhookPost<EventRoundAnnounceWarmup>();
+            Core.GameEvent.UnhookPost<EventWarmupEnd>();
+            Core.GameEvent.UnhookPost<EventCsWinPanelMatch>();
+            Core.GameEvent.UnhookPost<EventGamePhaseChanged>();
+            Core.GameEvent.UnhookPost<EventRoundAnnounceMatchStart>();
+            Core.GameEvent.UnhookPost<EventRoundAnnounceMatchPoint>();
+        }
+        catch (Exception ex)
+        {
+            Core.Logger.LogError(ex, "MapChooser: Unload cleanup failed");
+        }
     }
 }

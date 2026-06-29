@@ -46,7 +46,7 @@ MapChooser is a map voting plugin for SwiftlyS2. It handles Rock The Vote (RTV),
 | `MinPlayers` | `0` | Minimum number of players required to enable RTV. |
 | `MinRounds` | `0` | Minimum rounds that must be played before RTV is allowed. |
 | `ChangeMapImmediately` | `true` | Change the map immediately after a successful RTV vote. |
-| `ChangeMapDelay` | `3` | Delay in seconds before changing the map after a successful RTV vote. |
+| `ChangeMapDelay` | `3` | Delay in seconds before changing the map after a successful RTV vote (used when `ChangeMapImmediately` is `false`). |
 | `MapsToShow` | `6` | Number of maps to display in the RTV vote menu. |
 | `VoteDuration` | `30` | How long the vote menu remains open (seconds). |
 | `VotePercentage` | `60` | Percentage of players required to trigger the vote. |
@@ -83,16 +83,27 @@ MapChooser is a map voting plugin for SwiftlyS2. It handles Rock The Vote (RTV),
 | `MinRounds` | `0` | Minimum rounds required before `!extend` can be used. |
 | `VotePercentage` | `60` | Percentage of players required to pass the extend vote. |
 
+### Cycle Settings (`Cycle`)
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `Enabled` | `false` | Enable automatic advance to the next map in the cycle when a match ends without an end-of-map vote. Disabled by default. |
+| `RandomOrder` | `false` | Pick the next map randomly from the cycle (excluding maps in cooldown) instead of following the configured order. |
+| `AddMapPermission` | `admin.changemap` | Permission flag required for `!addmap`. |
+| `RemoveMapPermission` | `admin.changemap` | Permission flag required for `!removemap`. |
+| `CycleMenuPermission` | `admin.changemap` | Permission flag required for `!cyclemenu` / `!mapcycle`. |
+
 ### Global Settings
 | Setting | Default | Description |
 | :--- | :--- | :--- |
 | `MapsInCooldown` | `3` | Number of recently played maps to exclude from the next vote. |
 | `AllowSpectatorsToVote` | `false` | Allow spectators to participate in votes. |
 | `AnnounceVotes` | `true` | Broadcast vote counts to all players during voting. |
+| `DisableVoteMenuExit` | `false` | When `true`, removes the “Exit” entry from vote menus so players must pick a map. |
+| `DetailedLogging` | `false` | Verbose logging for vote flow and map cycle decisions. |
 | `SetNextMapPermission` | `admin.changemap` | Permission flag required for the `!setnextmap` command. |
 | `MapsVotePermission` | `admin.mapsvote` | Permission flag required for the `!mapsvote` command. |
 | `ChangeMapPermission` | `admin.changemap` | Permission flag required for the `!map` / `!setmap` command. |
-| `Maps` | (List) | List of maps available. Use `ws:ID` for workshop maps. |
+| `Maps` | (List) | List of maps available. Workshop maps accept either a bare numeric ID (e.g. `3124567099`) or the explicit `ws:` prefix (e.g. `ws:3124567099`). |
 
 ### Commands Settings (`Commands`)
 
@@ -112,6 +123,9 @@ All command aliases are fully configurable. Each setting accepts a comma-separat
 | `MapsVote` | `mapsvote` | Aliases for the admin maps vote command. |
 | `ChangeMap` | `map,setmap` | Aliases for the admin change map command. |
 | `MapList` | `maplist,maps` | Aliases for the map list command. |
+| `AddMap` | `addmap` | Aliases for the add-map admin command. |
+| `RemoveMap` | `removemap` | Aliases for the remove-map admin command. |
+| `CycleMenu` | `cyclemenu,mapcycle` | Aliases for the cycle management menu command. |
 
 ### Map Configuration
 
@@ -162,7 +176,7 @@ In this example, when there are 1–3 real players on the server, only `Mirage` 
 
 ## Map Cycle
 
-When a match ends and no end-of-map vote fires, the plugin automatically advances to the next map in the cycle. The cycle order follows `maps.jsonc`. Use `!cyclemenu` to view the order, move maps up/down, or remove them in-game. Use `!addmap` / `!removemap` to manage the list from chat — changes persist to disk immediately.
+When a match ends and no end-of-map vote fires, the plugin can automatically advance to the next map in the cycle. This is controlled by `Cycle.Enabled` and is **disabled by default** — enable it explicitly if you want the rotation. The cycle order follows `maps.jsonc` by default; set `Cycle.RandomOrder` to `true` to pick the next map at random from the cycle instead. Maps in cooldown are skipped either way. Use `!cyclemenu` to view the order, move maps up/down, or remove them in-game. Use `!addmap` / `!removemap` to manage the list from chat — changes persist to disk immediately.
 
 ## Features
 

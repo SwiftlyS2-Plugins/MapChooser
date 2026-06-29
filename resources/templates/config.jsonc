@@ -62,6 +62,8 @@
             "CycleMenuPermission": "admin.changemap"
         },
         "AllowSpectatorsToVote": false,
+        "DisableVoteMenuExit": false,
+        "DetailedLogging": false,
         "SetNextMapPermission": "admin.changemap",
         "MapsVotePermission": "admin.mapsvote"
     }
