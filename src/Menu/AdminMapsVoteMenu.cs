@@ -1,8 +1,9 @@
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
-using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
+using SwiftlyS2.Shared.Menu;
+using SwiftlyS2.Shared.Menu.Components;
 using SwiftlyS2.Shared.Players;
 using System.Threading.Tasks;
 
@@ -22,47 +23,42 @@ public class AdminMapsVoteMenu
 
     public void Show(IPlayer player, Action<IPlayer, List<string>> onStartVote)
     {
-        var oldMenu = _core.MenusAPI.GetCurrentMenu(player);
+        var oldSession = _core.Menu.GetSession(player);
         int? indexToRestore = null;
-        if (oldMenu?.Tag?.ToString() == "AdminMapsVoteMenu")
+        if (oldSession?.Menu.Tag?.ToString() == "AdminMapsVoteMenu")
         {
-            indexToRestore = oldMenu.GetCurrentOptionIndex(player);
+            indexToRestore = oldSession.FocusedIndex;
         }
 
         var localizer = _core.Translation.GetPlayerLocalizer(player);
-        var builder = _core.MenusAPI.CreateBuilder();
+        var builder = _core.Menu.CreateMenu("mapchooser.admin-maps-vote");
         
         string title = "Select Maps for Vote:";
         try { title = localizer["map_chooser.admin_vote.title"]; } catch { }
-        builder.Design.SetMenuTitle($"{title} ({_selectedMaps.Count})");
+        builder.AddHeader(new TitleComponent($"{title} ({_selectedMaps.Count})") { Overflow = MenuTextOverflow.None });
 
         // Start Vote Option
         string startText = "START VOTE";
         try { startText = localizer["map_chooser.admin_vote.start"]; } catch { }
-        var startOption = new ButtonMenuOption($"<font color='orange'>{startText}</font>");
-        startOption.Enabled = _selectedMaps.Count > 0;
-        startOption.Click += (sender, args) =>
+        var startOption = new ButtonComponent(startText, ctx =>
         {
             _core.Scheduler.NextTick(() =>
             {
-                var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                if (currentMenu != null)
-                {
-                    _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                }
+                ctx.Session.Close();
 
-                StartCountdown(args.Player, 5, onStartVote);
+                StartCountdown(ctx.Player, 5, onStartVote);
             });
             return ValueTask.CompletedTask;
-        };
-        builder.AddOption(startOption);
+        });
+        startOption.Style = startOption.Style.WithColor("#FFA500");
+        startOption.Enabled = _selectedMaps.Count > 0;
+        builder.Add(startOption);
 
         // Map Options
         foreach (var map in _mapLister.Maps)
         {
             bool isSelected = _selectedMaps.Contains(map.Name);
-            var option = new ButtonMenuOption($"{(isSelected ? "<font color='green'>[X]</font> " : "<font color='red'>[ ]</font> ")}{map.Name}");
-            option.Click += (sender, args) =>
+            var option = new CheckboxButtonComponent(map.Name, isSelected, ctx =>
             {
                 if (isSelected)
                     _selectedMaps.Remove(map.Name);
@@ -71,17 +67,17 @@ public class AdminMapsVoteMenu
 
                 _core.Scheduler.NextTick(() => Show(player, onStartVote));
                 return ValueTask.CompletedTask;
-            };
-            builder.AddOption(option);
+            });
+            builder.Add(option);
         }
 
         var menu = builder.Build();
         menu.Tag = "AdminMapsVoteMenu";
-        _core.MenusAPI.OpenMenuForPlayer(player, menu);
+        var session = menu.Open(player);
 
-        if (indexToRestore.HasValue && indexToRestore.Value != -1)
+        if (indexToRestore.HasValue)
         {
-            _core.Scheduler.NextTick(() => menu.MoveToOptionIndex(player, indexToRestore.Value));
+            session.SetFocus(indexToRestore.Value);
         }
     }
 
@@ -97,5 +93,14 @@ public class AdminMapsVoteMenu
         _core.PlayerManager.SendChat($"{localizer["map_chooser.prefix"]} Vote starting in [red]{seconds}[default] seconds...");
         
         _core.Scheduler.DelayBySeconds(1, () => StartCountdown(admin, seconds - 1, onStartVote));
+    }
+
+    // Inline <font> markup would print literally under the chat renderer, so the two colours are separate nodes.
+    private sealed class CheckboxButtonComponent(string text, bool isChecked, Func<MenuActionContext, ValueTask> onSelect)
+        : ButtonComponent(text, onSelect)
+    {
+        public override MenuNode Render(IMenuComponentRenderContext context) => MenuLineNode.Of(
+            new MenuTextNode(isChecked ? "[X] " : "[ ] ", Style.WithColor(isChecked ? "#008000" : "#FF0000")),
+            base.Render(context));
     }
 }

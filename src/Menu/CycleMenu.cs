@@ -1,7 +1,8 @@
 using MapChooser.Helpers;
 using MapChooser.Models;
-using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
+using SwiftlyS2.Shared.Menu;
+using SwiftlyS2.Shared.Menu.Components;
 using SwiftlyS2.Shared.Players;
 
 namespace MapChooser.Menu;
@@ -33,13 +34,13 @@ public class CycleMenu
             ? "map_chooser.cycle.mode_random"
             : "map_chooser.cycle.mode_sequential";
 
-        var builder = _core.MenusAPI.CreateBuilder();
-        builder.Design.SetMenuTitle(localizer["map_chooser.cycle.menu_title"] + " — " + localizer[modeKey]);
+        var builder = _core.Menu.CreateMenu("mapchooser.cycle");
+        builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.menu_title"] + " — " + localizer[modeKey]) { Overflow = MenuTextOverflow.None });
 
         if (maps.Count == 0)
         {
-            var emptyOption = new ButtonMenuOption(localizer["map_chooser.cycle.no_maps"]);
-            builder.AddOption(emptyOption);
+            var emptyOption = new ButtonComponent(localizer["map_chooser.cycle.no_maps"]);
+            builder.Add(emptyOption);
         }
         else
         {
@@ -54,29 +55,22 @@ public class CycleMenu
                 bool isNext = !_config.Cycle.RandomOrder && i == (_cycleManager.CycleIndex + 1) % maps.Count;
 
                 string label = $"{i + 1}. {map.Name}";
-                if (isCurrent) label = $"<font color='yellow'>{label} ◄</font>";
-                else if (isNext) label = $"<font color='lightgreen'>{label} →</font>";
-                else label = $"<font color='white'>{label}</font>";
+                if (isCurrent) label += " ◄";
+                else if (isNext) label += " →";
 
                 var mapCapture = map;
-                var option = new ButtonMenuOption(label);
-                option.Click += (sender, args) =>
+                var option = new ButtonComponent(label, ctx =>
                 {
-                    _core.Scheduler.NextTick(() =>
-                    {
-                        var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                        if (currentMenu != null)
-                            _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                        ShowMapActions(args.Player, mapCapture);
-                    });
+                    _core.Scheduler.NextTick(() => ShowMapActions(ctx.Player, mapCapture));
                     return System.Threading.Tasks.ValueTask.CompletedTask;
-                };
-                builder.AddOption(option);
+                });
+                option.Style = option.Style.WithColor(isCurrent ? "#FFFF00" : isNext ? "#90EE90" : "#FFFFFF");
+                builder.Add(option);
             }
         }
 
         var menu = builder.Build();
-        _core.MenusAPI.OpenMenuForPlayer(player, menu);
+        menu.Open(player);
     }
 
     private void ShowMapActions(IPlayer player, Map map)
@@ -85,117 +79,91 @@ public class CycleMenu
         var maps = _mapLister.Maps;
         int idx = maps.ToList().FindIndex(m => m.Name.Equals(map.Name, StringComparison.OrdinalIgnoreCase));
 
-        var builder = _core.MenusAPI.CreateBuilder();
-        builder.Design.SetMenuTitle(localizer["map_chooser.cycle.actions_title", map.Name]);
+        var builder = _core.Menu.CreateMenu("mapchooser.cycle-map-actions");
+        builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.actions_title", map.Name]) { Overflow = MenuTextOverflow.None });
 
         if (idx > 0)
         {
-            var upOption = new ButtonMenuOption($"<font color='lightblue'>{localizer["map_chooser.cycle.action_move_up"]}</font>");
-            upOption.Click += (sender, args) =>
+            var upOption = new ButtonComponent(localizer["map_chooser.cycle.action_move_up"], ctx =>
             {
                 _core.Scheduler.NextTick(() =>
                 {
                     _cycleManager.MoveMapUp(map.Name);
-                    var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                    if (currentMenu != null)
-                        _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                    Show(args.Player);
+                    Show(ctx.Player);
                 });
                 return System.Threading.Tasks.ValueTask.CompletedTask;
-            };
-            builder.AddOption(upOption);
+            });
+            upOption.Style = upOption.Style.WithColor("#ADD8E6");
+            builder.Add(upOption);
         }
 
         if (idx >= 0 && idx < maps.Count - 1)
         {
-            var downOption = new ButtonMenuOption($"<font color='lightblue'>{localizer["map_chooser.cycle.action_move_down"]}</font>");
-            downOption.Click += (sender, args) =>
+            var downOption = new ButtonComponent(localizer["map_chooser.cycle.action_move_down"], ctx =>
             {
                 _core.Scheduler.NextTick(() =>
                 {
                     _cycleManager.MoveMapDown(map.Name);
-                    var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                    if (currentMenu != null)
-                        _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                    Show(args.Player);
+                    Show(ctx.Player);
                 });
                 return System.Threading.Tasks.ValueTask.CompletedTask;
-            };
-            builder.AddOption(downOption);
+            });
+            downOption.Style = downOption.Style.WithColor("#ADD8E6");
+            builder.Add(downOption);
         }
 
-        var removeOption = new ButtonMenuOption($"<font color='red'>{localizer["map_chooser.cycle.action_remove"]}</font>");
-        removeOption.Click += (sender, args) =>
+        var removeOption = new ButtonComponent(localizer["map_chooser.cycle.action_remove"], ctx =>
         {
-            _core.Scheduler.NextTick(() =>
-            {
-                var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                if (currentMenu != null)
-                    _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                ShowRemoveConfirm(args.Player, map);
-            });
+            _core.Scheduler.NextTick(() => ShowRemoveConfirm(ctx.Player, map));
             return System.Threading.Tasks.ValueTask.CompletedTask;
-        };
-        builder.AddOption(removeOption);
+        });
+        removeOption.Style = removeOption.Style.WithColor("#FF0000");
+        builder.Add(removeOption);
 
-        var backOption = new ButtonMenuOption($"<font color='grey'>{localizer["map_chooser.cycle.action_back"]}</font>");
-        backOption.Click += (sender, args) =>
+        var backOption = new ButtonComponent(localizer["map_chooser.cycle.action_back"], ctx =>
         {
-            _core.Scheduler.NextTick(() =>
-            {
-                var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                if (currentMenu != null)
-                    _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                Show(args.Player);
-            });
+            _core.Scheduler.NextTick(() => Show(ctx.Player));
             return System.Threading.Tasks.ValueTask.CompletedTask;
-        };
-        builder.AddOption(backOption);
+        });
+        backOption.Style = backOption.Style.WithColor("#808080");
+        builder.Add(backOption);
 
         var menu = builder.Build();
-        _core.MenusAPI.OpenMenuForPlayer(player, menu);
+        menu.Open(player);
     }
 
     private void ShowRemoveConfirm(IPlayer player, Map map)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
 
-        var builder = _core.MenusAPI.CreateBuilder();
-        builder.Design.SetMenuTitle(localizer["map_chooser.cycle.remove_confirm_title", map.Name]);
+        var builder = _core.Menu.CreateMenu("mapchooser.cycle-remove-confirm");
+        builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.remove_confirm_title", map.Name]) { Overflow = MenuTextOverflow.None });
 
-        var yesOption = new ButtonMenuOption($"<font color='red'>{localizer["map_chooser.cycle.remove_confirm_yes"]}</font>");
-        yesOption.Click += (sender, args) =>
+        var yesOption = new ButtonComponent(localizer["map_chooser.cycle.remove_confirm_yes"], ctx =>
         {
             _core.Scheduler.NextTick(() =>
             {
-                var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                if (currentMenu != null)
-                    _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
+                ctx.Session.Close();
 
                 bool removed = _cycleManager.RemoveMap(map.Name);
                 if (removed)
                     _core.PlayerManager.SendChat(_core.Localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.cycle.map_removed", map.Name]);
             });
             return System.Threading.Tasks.ValueTask.CompletedTask;
-        };
+        });
+        yesOption.Style = yesOption.Style.WithColor("#FF0000");
 
-        var cancelOption = new ButtonMenuOption($"<font color='lightgreen'>{localizer["map_chooser.cycle.remove_cancel"]}</font>");
-        cancelOption.Click += (sender, args) =>
+        var cancelOption = new ButtonComponent(localizer["map_chooser.cycle.remove_cancel"], ctx =>
         {
-            _core.Scheduler.NextTick(() =>
-            {
-                var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                if (currentMenu != null)
-                    _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                Show(args.Player);
-            });
+            _core.Scheduler.NextTick(() => Show(ctx.Player));
             return System.Threading.Tasks.ValueTask.CompletedTask;
-        };
+        });
+        cancelOption.Style = cancelOption.Style.WithColor("#90EE90");
 
-        builder.AddOption(yesOption);
-        builder.AddOption(cancelOption);
+        builder.Add(yesOption);
+        builder.Add(cancelOption);
 
         var menu = builder.Build();
-        _core.MenusAPI.OpenMenuForPlayer(player, menu);
+        menu.Open(player);
     }
 }

@@ -1,8 +1,9 @@
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
-using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
+using SwiftlyS2.Shared.Menu;
+using SwiftlyS2.Shared.Menu.Components;
 using SwiftlyS2.Shared.Players;
 using System.Threading.Tasks;
 
@@ -23,36 +24,32 @@ public class SetNextMapMenu
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         var currentMapName = _core.ConVar.FindAsString("mapname")?.ValueAsString;
-        var builder = _core.MenusAPI.CreateBuilder();
+        var builder = _core.Menu.CreateMenu("mapchooser.set-next-map");
         string title = "Set Next Map:";
         try {
             title = localizer["map_chooser.setnextmap.title"] ?? "Set Next Map:";
         } catch { /* Ignore missing key */ }
         
-        builder.Design.SetMenuTitle(title);
+        builder.AddHeader(new TitleComponent(title) { Overflow = MenuTextOverflow.None });
         
         foreach (var map in _mapLister.Maps)
         {
             if (!string.IsNullOrEmpty(currentMapName) && map.Name.Equals(currentMapName, StringComparison.OrdinalIgnoreCase)) continue;
 
-            var option = new ButtonMenuOption($"<font color='lightgreen'>{map.Name}</font>");
-            option.Click += (sender, args) =>
+            var option = new ButtonComponent(map.Name, ctx =>
             {
                 _core.Scheduler.NextTick(() => {
-                    onSelect(args.Player, map.Name);
-                    var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                    if (currentMenu != null)
-                    {
-                        _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                    }
+                    onSelect(ctx.Player, map.Name);
+                    ctx.Session.Close();
                 });
                 return ValueTask.CompletedTask;
-            };
+            });
+            option.Style = option.Style.WithColor("#90EE90");
 
-            builder.AddOption(option);
+            builder.Add(option);
         }
 
-        var menu = builder.Build();
-        _core.MenusAPI.OpenMenuForPlayer(player, menu);
+        var menu = builder.Build().WithDefaultOption();
+        menu.Open(player);
     }
 }

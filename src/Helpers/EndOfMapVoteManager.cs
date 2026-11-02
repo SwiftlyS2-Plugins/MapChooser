@@ -2,9 +2,8 @@ using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
 using MapChooser.Menu;
-using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
-using SwiftlyS2.Shared.Menus;
+using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Players;
 using System.Threading.Tasks;
 
@@ -21,15 +20,15 @@ public class EndOfMapVoteManager
     private readonly ExtendManager _extendManager;
     private readonly MapChooserConfig _config;
 
-    private Dictionary<string, int> _votes = new();
-    private Dictionary<int, string> _playerVotes = new();
+    private readonly Dictionary<string, int> _votes = new();
+    private readonly Dictionary<int, string> _playerVotes = new();
     private List<string> _mapsInVote = new();
     private bool _voteActive = false;
     private bool _changeImmediately = false;
     private DateTime _voteEndTime;
     private readonly HashSet<int> _playersReceivedMenu = new();
     private int _voteSessionId = 0;
-    private readonly Dictionary<int, IMenuAPI> _activeVoteMenus = new();
+    private readonly Dictionary<int, IMenu> _activeVoteMenus = new();
 
     public EndOfMapVoteManager(ISwiftlyCore core, PluginState state, VoteManager voteManager, MapLister mapLister, MapCooldown mapCooldown, ChangeMapManager changeMapManager, ExtendManager extendManager, MapChooserConfig config)
     {
@@ -71,10 +70,10 @@ public class EndOfMapVoteManager
 
         foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
         {
-            var menu = _core.MenusAPI.GetCurrentMenu(player);
-            if (menu?.Tag?.ToString() == "EofVoteMenu")
+            var session = _core.Menu.GetSession(player);
+            if (session?.Menu.Tag?.ToString() == "EofVoteMenu")
             {
-                _core.MenusAPI.CloseMenuForPlayer(player, menu);
+                session.Close();
             }
         }
 
@@ -239,25 +238,22 @@ public class EndOfMapVoteManager
         int timeRemaining = (int)Math.Max(0, Math.Ceiling((_voteEndTime - DateTime.Now).TotalSeconds));
         foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
         {
-            var currentMenu = _core.MenusAPI.GetCurrentMenu(player);
-            bool hasEofMenuOpen = currentMenu?.Tag?.ToString() == "EofVoteMenu";
+            var currentSession = _core.Menu.GetSession(player);
+            bool hasEofMenuOpen = currentSession?.Menu.Tag?.ToString() == "EofVoteMenu";
 
             if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1)
             {
                 if (hasEofMenuOpen)
                 {
-                    _core.MenusAPI.CloseMenuForPlayer(player, currentMenu!);
+                    currentSession!.Close();
                     _activeVoteMenus.Remove(player.Slot);
                 }
                 continue;
             }
 
+            // Open vote menus redraw their own tally; rebuilding a voter's each second reset its cursor.
             if (_playerVotes.ContainsKey(player.Slot))
-            {
-                if (hasEofMenuOpen)
-                    OpenVoteMenu(player, timeRemaining);
                 continue;
-            }
 
             if (forceOpen || !_playersReceivedMenu.Contains(player.Slot))
             {
@@ -274,14 +270,14 @@ public class EndOfMapVoteManager
         int timeRemaining = (int)Math.Max(0, Math.Ceiling((_voteEndTime - DateTime.Now).TotalSeconds));
         foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
         {
-            var currentMenu = _core.MenusAPI.GetCurrentMenu(player);
-            bool hasEofMenuOpen = currentMenu?.Tag?.ToString() == "EofVoteMenu";
+            var currentSession = _core.Menu.GetSession(player);
+            bool hasEofMenuOpen = currentSession?.Menu.Tag?.ToString() == "EofVoteMenu";
 
             if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1)
             {
                 if (hasEofMenuOpen)
                 {
-                    _core.MenusAPI.CloseMenuForPlayer(player, currentMenu!);
+                    currentSession!.Close();
                     _activeVoteMenus.Remove(player.Slot);
                 }
                 continue;
@@ -305,9 +301,9 @@ public class EndOfMapVoteManager
 
     public void OpenVoteMenu(IPlayer player, int timeRemaining)
     {
-        if (!_voteActive) return;
+        if (!_voteActive || player.IsFakeClient) return;
         var menu = new EndOfMapVoteMenu(_core, _mapCooldown);
-        var builtMenu = menu.Show(player, _mapsInVote, RegisterVote, _config.DisableVoteMenuExit);
+        var builtMenu = menu.Show(player, _mapsInVote, _votes, _playerVotes, RegisterVote, _config.DisableVoteMenuExit);
         _activeVoteMenus[player.Slot] = builtMenu;
     }
 
@@ -338,11 +334,19 @@ public class EndOfMapVoteManager
             player.SendChat(localizer["map_chooser.prefix"] + " " + localizer["map_chooser.vote.you_voted", displayName]);
         }
         
-        var currentMenu = _core.MenusAPI.GetCurrentMenu(player);
-        if (currentMenu?.Tag?.ToString() == "EofVoteMenu")
+        var currentSession = _core.Menu.GetSession(player);
+        if (currentSession?.Menu.Tag?.ToString() == "EofVoteMenu")
         {
-            _core.MenusAPI.CloseMenuForPlayer(player, currentMenu);
-            _activeVoteMenus.Remove(slot);
+            var tally = new EndOfMapVoteMenu(_core, _mapCooldown).ShowTally(player, _mapsInVote, _votes, _playerVotes);
+            if (tally is not null)
+            {
+                _activeVoteMenus[slot] = tally;
+            }
+            else
+            {
+                currentSession.Close();
+                _activeVoteMenus.Remove(slot);
+            }
         }
     }
     
@@ -368,9 +372,9 @@ public class EndOfMapVoteManager
 
         foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
         {
-            var menu = _core.MenusAPI.GetCurrentMenu(player);
-            if (menu?.Tag?.ToString() == "EofVoteMenu")
-                _core.MenusAPI.CloseMenuForPlayer(player, menu);
+            var session = _core.Menu.GetSession(player);
+            if (session?.Menu.Tag?.ToString() == "EofVoteMenu")
+                session.Close();
         }
 
         _core.PlayerManager.SendChat(_core.Localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.rtv.vote_cancelled"]);
@@ -440,9 +444,9 @@ public class EndOfMapVoteManager
 
             foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
             {
-                var menu = _core.MenusAPI.GetCurrentMenu(player);
-                if (menu?.Tag?.ToString() == "EofVoteMenu")
-                    _core.MenusAPI.CloseMenuForPlayer(player, menu);
+                var session = _core.Menu.GetSession(player);
+                if (session?.Menu.Tag?.ToString() == "EofVoteMenu")
+                    session.Close();
             }
             
             _votes.Clear();

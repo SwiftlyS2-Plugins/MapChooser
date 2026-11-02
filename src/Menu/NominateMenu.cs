@@ -1,8 +1,9 @@
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
-using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
+using SwiftlyS2.Shared.Menu;
+using SwiftlyS2.Shared.Menu.Components;
 using SwiftlyS2.Shared.Players;
 using System.Threading.Tasks;
 
@@ -25,8 +26,8 @@ public class NominateMenu
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         _core.TryGetEngineSnapshot(out var currentMapId, out var currentWorkshopId, out _);
-        var builder = _core.MenusAPI.CreateBuilder();
-        builder.Design.SetMenuTitle(localizer["map_chooser.nominate.title"] ?? "Nominate a map:");
+        var builder = _core.Menu.CreateMenu("mapchooser.nominate");
+        builder.AddHeader(new TitleComponent(localizer["map_chooser.nominate.title"] ?? "Nominate a map:") { Overflow = MenuTextOverflow.None });
         var playerCount = _core.PlayerManager.GetAllPlayers()
             .Count(p => p.IsValid && !p.IsFakeClient);
         foreach (var map in _mapLister.Maps)
@@ -35,25 +36,21 @@ public class NominateMenu
             if (_mapCooldown.IsMapInCooldown(map)) continue;
             if (!map.IsValidForPlayerCount(playerCount)) continue;
 
-            var option = new ButtonMenuOption($"<font color='lightgreen'>{map.Name}</font>");
-            option.Click += (sender, args) =>
+            var option = new ButtonComponent(map.Name, ctx =>
             {
                 _core.Scheduler.NextTick(() => {
-                    onNominate(args.Player, map.Name);
-                    var currentMenu = _core.MenusAPI.GetCurrentMenu(args.Player);
-                    if (currentMenu != null)
-                    {
-                        _core.MenusAPI.CloseMenuForPlayer(args.Player, currentMenu);
-                    }
+                    onNominate(ctx.Player, map.Name);
+                    ctx.Session.Close();
                 });
                 return ValueTask.CompletedTask;
-            };
+            });
+            option.Style = option.Style.WithColor("#90EE90");
 
-            builder.AddOption(option);
+            builder.Add(option);
         }
 
-        var menu = builder.Build();
-        _core.MenusAPI.OpenMenuForPlayer(player, menu);
+        var menu = builder.Build().WithDefaultOption();
+        menu.Open(player);
     }
 
     private static bool IsCurrentMap(Map map, string? currentMapId, string? currentWorkshopId)
