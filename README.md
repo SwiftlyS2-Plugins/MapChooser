@@ -98,7 +98,7 @@ MapChooser is a map voting plugin for SwiftlyS2. It handles Rock The Vote (RTV),
 | `MapsInCooldown` | `3` | Number of recently played maps to exclude from the next vote. |
 | `AllowSpectatorsToVote` | `false` | Allow spectators to participate in votes. |
 | `AnnounceVotes` | `true` | Broadcast vote counts to all players during voting. |
-| `DisableVoteMenuExit` | `false` | When `true`, removes the “Exit” entry from vote menus so players must pick a map. |
+| `DisableVoteMenuExit` | `false` | When `true`, the map vote menu has no close key, so players must pick a map. The tally shown after voting can always be closed. |
 | `DetailedLogging` | `false` | Verbose logging for vote flow and map cycle decisions. |
 | `SetNextMapPermission` | `admin.changemap` | Permission flag required for the `!setnextmap` command. |
 | `MapsVotePermission` | `admin.mapsvote` | Permission flag required for the `!mapsvote` command. |

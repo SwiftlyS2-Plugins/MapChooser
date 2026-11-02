@@ -1,7 +1,6 @@
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
-using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Players;
