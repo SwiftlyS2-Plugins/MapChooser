@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MapChooser.Contract</AssemblyName>
+    <RootNamespace>MapChooser.Contract</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- The XML is worth shipping for the members that carry a real doc comment, without writing
+         "Gets the total." on every self-explanatory one. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <OutputPath>$(MSBuildThisFileDirectory)build/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!-- Separate from the plugin assembly because a consumer has to name IMapChooserApi at compile
+       time, and referencing MapChooser.dll itself would put a second copy of the plugin on the
+       server. References nothing, so it stays independent of SwiftlyS2 versions. -->
+
+</Project>

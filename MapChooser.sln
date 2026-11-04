@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapChooser", "MapChooser.csproj", "{233E4098-325B-0DB7-A9E5-B65093F5AAD6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapChooser.Contract", "MapChooser.Contract\MapChooser.Contract.csproj", "{1FD16574-0D84-4430-A489-1ADA54DAB4E7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{233E4098-325B-0DB7-A9E5-B65093F5AAD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{233E4098-325B-0DB7-A9E5-B65093F5AAD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{233E4098-325B-0DB7-A9E5-B65093F5AAD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FD16574-0D84-4430-A489-1ADA54DAB4E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FD16574-0D84-4430-A489-1ADA54DAB4E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FD16574-0D84-4430-A489-1ADA54DAB4E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FD16574-0D84-4430-A489-1ADA54DAB4E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

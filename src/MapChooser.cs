@@ -1,5 +1,7 @@
 ﻿using System.Threading;
+using MapChooser.Api;
 using MapChooser.Commands;
+using MapChooser.Contract;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
 using MapChooser.Menu;
@@ -16,7 +18,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace MapChooser;
 
-[PluginMetadata(Id = "MapChooser", Version = "1.3.3", Name = "Map Chooser", Author = "aga", Description = "Map chooser plugin for SwiftlyS2")]
+[PluginMetadata(Id = "MapChooser", Version = "1.4.0", Name = "Map Chooser", Author = "aga", Description = "Map chooser plugin for SwiftlyS2")]
 public sealed class MapChooser : BasePlugin
 {
     private MapChooserConfig _config = new();
@@ -49,12 +51,18 @@ public sealed class MapChooser : BasePlugin
 
     private CancellationTokenSource? _checkVoteTimer;
 
+    // Built with the plugin rather than in Load, so it exists whichever of the two SwiftlyS2 calls first.
+    private readonly MapChooserApi _api = new();
+
     public MapChooser(ISwiftlyCore core) : base(core)
     {
     }
 
     public override void ConfigureSharedInterface(IInterfaceManager interfaceManager)
     {
+        // Re-runs on every plugin load and unload, before consumers subscribe again in their handshake.
+        _api.ClearSubscribers();
+        interfaceManager.AddSharedInterface<IMapChooserApi, MapChooserApi>(IMapChooserApi.InterfaceKey, _api);
     }
 
     public override void Load(bool hotReload)
@@ -83,6 +91,7 @@ public sealed class MapChooser : BasePlugin
         _extVoteManager = new VoteManager();
         _extendManager = new ExtendManager(Core, _state, _config);
         _eofManager = new EndOfMapVoteManager(Core, _state, _rtvVoteManager, _mapLister, _mapCooldown, _changeMapManager, _extendManager, _config);
+        _api.Attach(_eofManager, Core.Logger);
 
         var mapsFilePath = Core.Configuration.GetConfigPath("maps.jsonc");
         _cycleManager = new MapCycleManager(Core, _state, _mapLister, _changeMapManager, _config, mapsFilePath);
@@ -468,6 +477,8 @@ public sealed class MapChooser : BasePlugin
     {
         try
         {
+            _api.Detach();
+
             _checkVoteTimer?.Cancel();
             _checkVoteTimer = null;
 

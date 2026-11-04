@@ -28,10 +28,51 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="examples\**\*.cs" />
+    <!-- Private=false: CopyContract below decides where the contract ships (resources/exports, plus
+         a fallback beside the plugin DLL); this reference only compiles against it. -->
+    <ProjectReference Include="MapChooser.Contract/MapChooser.Contract.csproj" Private="false" />
   </ItemGroup>
 
-  <Target Name="CreateZip" AfterTargets="Publish">
+  <ItemGroup>
+    <Compile Remove="examples\**\*.cs" />
+    <!-- The contract lives inside this project's directory, so the default globs would compile its
+         sources (and its obj/ generated files) into the plugin on top of referencing the assembly. -->
+    <Compile Remove="MapChooser.Contract/**" />
+    <None Remove="MapChooser.Contract/**" />
+  </ItemGroup>
+
+  <!-- Resolved inside a target rather than an item glob: the contract DLL does not exist during
+       project evaluation, so a glob ships nothing from a clean checkout and fails only at runtime.
+
+       Shipped to BOTH resources/exports and next to the plugin DLL. Exports is what gives every
+       plugin one shared IMapChooserApi identity, but SwiftlyS2 snapshots exports once at startup
+       and never rescans, so a MapChooser installed on an already-running server has none - and
+       FindPluginType's GetTypes() then cannot resolve the interface MapChooserApi implements,
+       failing the whole plugin before Load runs. PreferSharedTypes keeps the shared copy winning
+       whenever it exists, so the local fallback cannot split it. -->
+  <Target Name="CopyContract" AfterTargets="Build">
+    <PropertyGroup>
+      <_ApiContractDll>$(MSBuildThisFileDirectory)MapChooser.Contract/build/$(TargetFramework)/MapChooser.Contract.dll</_ApiContractDll>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_ApiContractDll)')"
+           Text="CopyContract: $(_ApiContractDll) is missing. Build MapChooser.Contract first." />
+    <Copy SourceFiles="$(_ApiContractDll)" DestinationFolder="$(OutDir)resources/exports" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(_ApiContractDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyContractToPublish" AfterTargets="Publish">
+    <PropertyGroup>
+      <_ApiContractDll>$(MSBuildThisFileDirectory)MapChooser.Contract/build/$(TargetFramework)/MapChooser.Contract.dll</_ApiContractDll>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_ApiContractDll)')"
+           Text="CopyContractToPublish: $(_ApiContractDll) is missing. Build MapChooser.Contract first." />
+    <Copy SourceFiles="$(_ApiContractDll)" DestinationFolder="$(PublishDir)resources/exports" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(_ApiContractDll)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- DependsOnTargets, not just declaration order: both targets run AfterTargets="Publish", and the
+       zip is the release artifact, so it must never be taken before the contract is in place. -->
+  <Target Name="CreateZip" AfterTargets="Publish" DependsOnTargets="CopyContractToPublish">
     <ItemGroup>
       <PublishFiles Include="$(PublishDir)**\*.*" />
     </ItemGroup>
