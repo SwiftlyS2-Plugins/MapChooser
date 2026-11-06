@@ -45,6 +45,8 @@ public class SetNextMapMenu
                 return ValueTask.CompletedTask;
             });
             option.Style = option.Style.WithColor("#90EE90");
+            // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
+            option.Tag = map.Name;
 
             builder.Add(option);
         }

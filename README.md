@@ -98,7 +98,7 @@ MapChooser is a map voting plugin for SwiftlyS2. It handles Rock The Vote (RTV),
 | `MapsInCooldown` | `3` | Number of recently played maps to exclude from the next vote. |
 | `AllowSpectatorsToVote` | `false` | Allow spectators to participate in votes. |
 | `AnnounceVotes` | `true` | Broadcast vote counts to all players during voting. |
-| `DisableVoteMenuExit` | `false` | When `true`, the map vote menu has no close key, so players must pick a map. The tally shown after voting can always be closed. |
+| `DisableVoteMenuExit` | `false` | When `true`, the map vote menu has no close key, so players must pick a map. The menu closes once they have voted. |
 | `DetailedLogging` | `false` | Verbose logging for vote flow and map cycle decisions. |
 | `SetNextMapPermission` | `admin.changemap` | Permission flag required for the `!setnextmap` command. |
 | `MapsVotePermission` | `admin.mapsvote` | Permission flag required for the `!mapsvote` command. |
@@ -180,7 +180,7 @@ When a match ends and no end-of-map vote fires, the plugin can automatically adv
 
 ## Features
 
-- **Live Vote Updates**: Menus refresh in real-time as players cast their votes.
+- **Live Vote Counts**: With `AnnounceVotes`, every ballot is announced in chat with the map's running count, and the whole tally is published to other plugins through the [Shared API](#shared-api), so a HUD or menu plugin can draw it live.
 - **Smart Triggers**: Automated votes trigger based on time remaining, rounds remaining, or when a team is close to winning.
 - **Map Cooldown**: Prevents recently played maps from appearing in the vote too soon.
 - **Map Extension**: Players can vote to extend the current map time or round limit.
@@ -194,10 +194,52 @@ When a match ends and no end-of-map vote fires, the plugin can automatically adv
 1. Download the latest release or build the plugin yourself.
 2. Copy the published plugin folder to your server:
    `.../game/csgo/addons/swiftlys2/plugins/MapChooser/`
-3. Ensure the plugin has its `resources/` folder alongside the DLL.
+3. Keep the plugin's `resources/` folder alongside the DLL. It includes `resources/exports/MapChooser.Contract.dll`, which other plugins use to read the vote (see [Shared API](#shared-api)).
 4. Start/restart the server.
 
 ## Building
 
 - Open the project in your preferred .NET IDE (e.g., VS Code, Visual Studio).
 - Build the project. The output DLL and resources will be placed in the `build/` directory.
+- Building `MapChooser.csproj` builds `MapChooser.Contract` first and copies `MapChooser.Contract.dll` into `build/net10.0/resources/exports/` and beside `MapChooser.dll`. `dotnet publish -c Release` does the same under `build/publish/MapChooser/` and zips the result to `build/MapChooser.zip`.
+
+## Shared API
+
+MapChooser publishes the running map vote to other plugins, read-only, as the shared interface `MapChooser.Api.v1`. A HUD or menu plugin draws vote counts, share bars, each player's pick and a post-vote tally from it; MapChooser's own vote menu stays renderer-agnostic and shows none of that.
+
+The contract is `MapChooser.Contract.dll` (namespace `MapChooser.Contract`, interface `IMapChooserApi`). It ships in `resources/exports/` and, as a fallback for an install on an already-running server, beside `MapChooser.dll`.
+
+| Member | Description |
+| :--- | :--- |
+| `const string InterfaceKey` | `"MapChooser.Api.v1"`. |
+| `const string ExtendOption` | `"map_chooser.extend_option"` — the ballot entry that extends the current map instead of changing it. |
+| `bool IsVoteActive` | `true` while an end-of-map, RTV or `!mapsvote` ballot is open. |
+| `IReadOnlyList<string> VoteOptions` | The ballot in menu order: map names, plus `ExtendOption` when extending is offered. Empty when no vote is running. |
+| `int GetVoteCount(string option)` | Votes for one ballot entry; `0` for an option not on the ballot, or when no vote is running. |
+| `int TotalVotes` | Ballots cast in the running vote — the sum of every `GetVoteCount`. |
+| `string? GetPlayerVote(int playerSlot)` | The option that player voted for, or `null`. |
+| `event Action? VoteChanged` | The tally changed: a vote started; a ballot was cast, changed or withdrawn (`!unrtv`); or the vote ended or was cancelled, including by a map change or the match going live. |
+| `event Action<int, string>? PlayerVoted` | A player cast or changed a ballot: `(playerSlot, option)`. Raised right after that ballot's `VoteChanged`. |
+| `IReadOnlyList<MapChooserMap> Maps` | The map pool in config order. |
+| `MapChooserMap? GetMap(string name)` | A pool map by the name its menus and ballot show (case-insensitive); `null` for any other name, `ExtendOption` included. |
+
+`MapChooserMap(Name, MapName, WorkshopId, MinPlayers, MaxPlayers)`: `Name` is what menus show; `MapName` is the map the server loads (`de_dust2`, `null` for a workshop map); `WorkshopId` is the Steam Workshop ID (`null` otherwise); `0` means no player limit.
+
+- **Threading.** Both events are raised on the game thread once MapChooser has finished its own work for the change — by `PlayerVoted`, the voter's vote menu is already closed — so a handler reads the new state. Read the members on the game thread too. A vote cut short by a map change raises `VoteChanged` from inside map load: read the API there, but leave entities alone.
+- **A throwing handler is contained.** It is logged as a warning and skipped; other subscribers and the vote carry on.
+- **Subscribe in the handshake, every time.** SwiftlyS2 re-runs `ConfigureSharedInterface` on every plugin load and unload, and MapChooser drops all subscriptions there, as SwiftlyS2's shared-API guidance asks of APIs with events. Subscribe in `UseSharedInterface` or `OnSharedInterfaceInjected` on every call, not once in `Load`. After MapChooser unloads, an instance you still hold reports no vote and raises nothing.
+- **Do not ship the contract.** Reference `MapChooser.Contract` with `Private="false"`: a second copy gives `IMapChooserApi` a second type identity, and `TryGetSharedInterface` stops matching. If MapChooser may be absent, the contract DLL is absent too, and the JIT fails any method that names `IMapChooserApi` — hold the API as `object?` and keep those methods `[MethodImpl(MethodImplOptions.NoInlining)]`, reached only after `HasSharedInterface("MapChooser.Api.v1")` returned `true`.
+- **Menu rows carry their map.** Each row of the vote menu has its ballot option as the component's `Tag` (the map name, or `ExtendOption`), so a renderer can match a row to `GetVoteCount` and `GetPlayerVote`. The nominate, `!votemap`, change-map, set-next-map, `!mapsvote` and map cycle menus tag each row with its map's name too, for `GetMap`.
+
+```csharp
+// MapChooser installed alongside: the plain binder. Otherwise isolate it, as above.
+public override void UseSharedInterface(IInterfaceManager interfaceManager)
+{
+    interfaceManager.TryGetSharedInterface<IMapChooserApi>(IMapChooserApi.InterfaceKey, out _mapChooser);
+    if (_mapChooser is null) return;
+
+    // MapChooser cleared its subscribers before this ran, so these never double up.
+    _mapChooser.VoteChanged += OnVoteChanged;
+    _mapChooser.PlayerVoted += OnPlayerVoted;
+}
+```

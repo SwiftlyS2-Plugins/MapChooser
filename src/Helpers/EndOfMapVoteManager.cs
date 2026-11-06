@@ -1,3 +1,4 @@
+using MapChooser.Contract;
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
@@ -29,6 +30,35 @@ public class EndOfMapVoteManager
     private readonly HashSet<int> _playersReceivedMenu = new();
     private int _voteSessionId = 0;
     private readonly Dictionary<int, IMenu> _activeVoteMenus = new();
+    private IReadOnlyList<string> _ballot = Array.Empty<string>();
+
+    // MapChooserApi forwards both to other plugins. Raised on the game thread once MapChooser's own
+    // work for the change is done, so a subscriber always reads the new state.
+    public event Action? VoteChanged;
+    public event Action<int, string>? PlayerVoted;
+
+    public bool IsVoteActive => _voteActive;
+
+    // _mapsInVote outlives its vote (only ResetVote clears it), hence the _voteActive gate.
+    public IReadOnlyList<string> VoteOptions => _voteActive ? _ballot : Array.Empty<string>();
+
+    public int GetVoteCount(string option)
+        => _voteActive && option is not null ? _votes.GetValueOrDefault(option) : 0;
+
+    public int TotalVotes
+    {
+        get
+        {
+            if (!_voteActive) return 0;
+            int total = 0;
+            foreach (var count in _votes.Values)
+                total += count;
+            return total;
+        }
+    }
+
+    public string? GetPlayerVote(int playerSlot)
+        => _voteActive && _playerVotes.TryGetValue(playerSlot, out var option) ? option : null;
 
     public EndOfMapVoteManager(ISwiftlyCore core, PluginState state, VoteManager voteManager, MapLister mapLister, MapCooldown mapCooldown, ChangeMapManager changeMapManager, ExtendManager extendManager, MapChooserConfig config)
     {
@@ -45,7 +75,7 @@ public class EndOfMapVoteManager
     private bool IsMapInCooldownForVote(string mapName)
     {
         if (string.IsNullOrWhiteSpace(mapName)) return false;
-        if (mapName == "map_chooser.extend_option") return false;
+        if (mapName == IMapChooserApi.ExtendOption) return false;
 
         var map = _mapLister.Maps.FirstOrDefault(m => m.Name.Equals(mapName, StringComparison.OrdinalIgnoreCase));
         if (map != null) return _mapCooldown.IsMapInCooldown(map);
@@ -62,6 +92,7 @@ public class EndOfMapVoteManager
 
     public void ResetVote()
     {
+        bool wasActive = _voteActive;
         _voteSessionId++;
         _voteActive = false;
         _state.EofVoteHappening = false;
@@ -82,6 +113,9 @@ public class EndOfMapVoteManager
         _playersReceivedMenu.Clear();
         _mapsInVote.Clear();
         _activeVoteMenus.Clear();
+
+        if (wasActive)
+            VoteChanged?.Invoke();
     }
 
     public void StartVote(int voteDuration, int mapsToShow, bool changeImmediately = false, bool isRtv = false)
@@ -170,10 +204,11 @@ public class EndOfMapVoteManager
 
         if (_config.EndOfMap.AllowExtend && _state.ExtendsLeft > 0 && !_isRtvVote)
         {
-            _mapsInVote.Add("map_chooser.extend_option");
+            _mapsInVote.Add(IMapChooserApi.ExtendOption);
         }
 
         _mapsInVote = _mapsInVote.Where(m => !IsMapInCooldownForVote(m)).ToList();
+        _ballot = _mapsInVote.AsReadOnly();
 
 
         foreach (var map in _mapsInVote)
@@ -185,6 +220,7 @@ public class EndOfMapVoteManager
 
         RefreshVoteMenu(true);
         _core.Scheduler.DelayBySeconds(1, () => RunVoteTimer(_voteSessionId));
+        VoteChanged?.Invoke();
     }
 
     public void StartCustomVote(List<string> maps, int voteDuration, bool changeImmediately = false)
@@ -202,6 +238,7 @@ public class EndOfMapVoteManager
         _playersReceivedMenu.Clear();
 
         _mapsInVote = maps.Where(m => !IsMapInCooldownForVote(m)).ToList();
+        _ballot = _mapsInVote.AsReadOnly();
 
         foreach (var map in _mapsInVote)
             _votes[map] = 0;
@@ -212,6 +249,7 @@ public class EndOfMapVoteManager
 
         RefreshVoteMenu(true);
         _core.Scheduler.DelayBySeconds(1, () => RunVoteTimer(_voteSessionId));
+        VoteChanged?.Invoke();
     }
 
     private void RunVoteTimer(int sessionId)
@@ -251,7 +289,7 @@ public class EndOfMapVoteManager
                 continue;
             }
 
-            // Open vote menus redraw their own tally; rebuilding a voter's each second reset its cursor.
+            // Voters are not rebuilt each second: that reset the cursor of a menu reopened with !revote.
             if (_playerVotes.ContainsKey(player.Slot))
                 continue;
 
@@ -303,7 +341,7 @@ public class EndOfMapVoteManager
     {
         if (!_voteActive || player.IsFakeClient) return;
         var menu = new EndOfMapVoteMenu(_core, _mapCooldown);
-        var builtMenu = menu.Show(player, _mapsInVote, _votes, _playerVotes, RegisterVote, _config.DisableVoteMenuExit);
+        var builtMenu = menu.Show(player, _mapsInVote, RegisterVote, _config.DisableVoteMenuExit);
         _activeVoteMenus[player.Slot] = builtMenu;
     }
 
@@ -311,6 +349,8 @@ public class EndOfMapVoteManager
     {
         if (!_voteActive) return;
         if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1) return;
+        // The click is applied a tick late, so it can name an option the current ballot lacks.
+        if (!_votes.ContainsKey(map)) return;
 
         int slot = player.Slot;
         if (_playerVotes.ContainsKey(slot))
@@ -322,7 +362,7 @@ public class EndOfMapVoteManager
         _votes[map]++;
 
         var localizer = _core.Translation.GetPlayerLocalizer(player);
-        string displayName = map == "map_chooser.extend_option" ? localizer["map_chooser.extend_option"] : map;
+        string displayName = map == IMapChooserApi.ExtendOption ? localizer["map_chooser.extend_option"] : map;
 
         if (_config.AnnounceVotes)
         {
@@ -337,17 +377,13 @@ public class EndOfMapVoteManager
         var currentSession = _core.Menu.GetSession(player);
         if (currentSession?.Menu.Tag?.ToString() == "EofVoteMenu")
         {
-            var tally = new EndOfMapVoteMenu(_core, _mapCooldown).ShowTally(player, _mapsInVote, _votes, _playerVotes);
-            if (tally is not null)
-            {
-                _activeVoteMenus[slot] = tally;
-            }
-            else
-            {
-                currentSession.Close();
-                _activeVoteMenus.Remove(slot);
-            }
+            currentSession.Close();
+            _activeVoteMenus.Remove(slot);
         }
+
+        // After the close, so anything a subscriber opens for the voter is not closed with it.
+        VoteChanged?.Invoke();
+        PlayerVoted?.Invoke(slot, map);
     }
     
     public void RemoveMapVote(IPlayer player)
@@ -360,6 +396,7 @@ public class EndOfMapVoteManager
             string map = _playerVotes[slot];
             _votes[map]--;
             _playerVotes.Remove(slot);
+            VoteChanged?.Invoke();
         }
     }
 
@@ -382,6 +419,7 @@ public class EndOfMapVoteManager
         _playerVotes.Clear();
         _playersReceivedMenu.Clear();
         _activeVoteMenus.Clear();
+        VoteChanged?.Invoke();
     }
     
     public void ForceEnd()
@@ -422,7 +460,7 @@ public class EndOfMapVoteManager
 
             if (string.IsNullOrEmpty(winner)) return;
 
-            if (winner == "map_chooser.extend_option")
+            if (winner == IMapChooserApi.ExtendOption)
             {
                 _core.PlayerManager.SendChat(_core.Localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.extend.vote_passed", _votes.GetValueOrDefault(winner, 0)]);
                 _extendManager.ExtendMap(_config.EndOfMap.ExtendTimeStep, _config.EndOfMap.ExtendRoundStep);
@@ -453,6 +491,7 @@ public class EndOfMapVoteManager
             _playerVotes.Clear();
             _playersReceivedMenu.Clear();
             _activeVoteMenus.Clear();
+            VoteChanged?.Invoke();
         }
     }
 }
