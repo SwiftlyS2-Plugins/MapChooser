@@ -68,6 +68,8 @@ public class AdminMapsVoteMenu
                 _core.Scheduler.NextTick(() => Show(player, onStartVote));
                 return ValueTask.CompletedTask;
             });
+            // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
+            option.Tag = map.Name;
             builder.Add(option);
         }
 

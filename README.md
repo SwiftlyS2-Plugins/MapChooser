@@ -220,12 +220,16 @@ The contract is `MapChooser.Contract.dll` (namespace `MapChooser.Contract`, inte
 | `string? GetPlayerVote(int playerSlot)` | The option that player voted for, or `null`. |
 | `event Action? VoteChanged` | The tally changed: a vote started; a ballot was cast, changed or withdrawn (`!unrtv`); or the vote ended or was cancelled, including by a map change or the match going live. |
 | `event Action<int, string>? PlayerVoted` | A player cast or changed a ballot: `(playerSlot, option)`. Raised right after that ballot's `VoteChanged`. |
+| `IReadOnlyList<MapChooserMap> Maps` | The map pool in config order. |
+| `MapChooserMap? GetMap(string name)` | A pool map by the name its menus and ballot show (case-insensitive); `null` for any other name, `ExtendOption` included. |
+
+`MapChooserMap(Name, MapName, WorkshopId, MinPlayers, MaxPlayers)`: `Name` is what menus show; `MapName` is the map the server loads (`de_dust2`, `null` for a workshop map); `WorkshopId` is the Steam Workshop ID (`null` otherwise); `0` means no player limit.
 
 - **Threading.** Both events are raised on the game thread once MapChooser has finished its own work for the change — by `PlayerVoted`, the voter's vote menu is already closed — so a handler reads the new state. Read the members on the game thread too. A vote cut short by a map change raises `VoteChanged` from inside map load: read the API there, but leave entities alone.
 - **A throwing handler is contained.** It is logged as a warning and skipped; other subscribers and the vote carry on.
 - **Subscribe in the handshake, every time.** SwiftlyS2 re-runs `ConfigureSharedInterface` on every plugin load and unload, and MapChooser drops all subscriptions there, as SwiftlyS2's shared-API guidance asks of APIs with events. Subscribe in `UseSharedInterface` or `OnSharedInterfaceInjected` on every call, not once in `Load`. After MapChooser unloads, an instance you still hold reports no vote and raises nothing.
 - **Do not ship the contract.** Reference `MapChooser.Contract` with `Private="false"`: a second copy gives `IMapChooserApi` a second type identity, and `TryGetSharedInterface` stops matching. If MapChooser may be absent, the contract DLL is absent too, and the JIT fails any method that names `IMapChooserApi` — hold the API as `object?` and keep those methods `[MethodImpl(MethodImplOptions.NoInlining)]`, reached only after `HasSharedInterface("MapChooser.Api.v1")` returned `true`.
-- **Vote menu rows carry their option.** Each row of the vote menu has its ballot option as the component's `Tag` (the map name, or `ExtendOption`), so a renderer can match a row to `GetVoteCount` and `GetPlayerVote`.
+- **Menu rows carry their map.** Each row of the vote menu has its ballot option as the component's `Tag` (the map name, or `ExtendOption`), so a renderer can match a row to `GetVoteCount` and `GetPlayerVote`. The nominate, `!votemap`, change-map, set-next-map, `!mapsvote` and map cycle menus tag each row with its map's name too, for `GetMap`.
 
 ```csharp
 // MapChooser installed alongside: the plain binder. Otherwise isolate it, as above.

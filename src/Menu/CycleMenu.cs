@@ -65,6 +65,8 @@ public class CycleMenu
                     return System.Threading.Tasks.ValueTask.CompletedTask;
                 });
                 option.Style = option.Style.WithColor(isCurrent ? "#FFFF00" : isNext ? "#90EE90" : "#FFFFFF");
+                // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
+                option.Tag = map.Name;
                 builder.Add(option);
             }
         }

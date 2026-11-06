@@ -27,4 +27,10 @@ public interface IMapChooserApi
 
     /// <summary>Raised on the game thread after a player casts or changes a ballot: player slot, option.</summary>
     event Action<int, string>? PlayerVoted;
+
+    /// <summary>The configured map pool, in config order. Read on the game thread.</summary>
+    IReadOnlyList<MapChooserMap> Maps { get; }
+
+    /// <summary>A pool map by the name its menus and ballot show, case-insensitively; null for any other name, <see cref="ExtendOption"/> included.</summary>
+    MapChooserMap? GetMap(string name);
 }

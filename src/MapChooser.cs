@@ -91,7 +91,7 @@ public sealed class MapChooser : BasePlugin
         _extVoteManager = new VoteManager();
         _extendManager = new ExtendManager(Core, _state, _config);
         _eofManager = new EndOfMapVoteManager(Core, _state, _rtvVoteManager, _mapLister, _mapCooldown, _changeMapManager, _extendManager, _config);
-        _api.Attach(_eofManager, Core.Logger);
+        _api.Attach(_eofManager, _mapLister, Core.Logger);
 
         var mapsFilePath = Core.Configuration.GetConfigPath("maps.jsonc");
         _cycleManager = new MapCycleManager(Core, _state, _mapLister, _changeMapManager, _config, mapsFilePath);
