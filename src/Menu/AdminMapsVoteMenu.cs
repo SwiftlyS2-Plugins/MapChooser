@@ -1,108 +1,92 @@
-using MapChooser.Models;
-using MapChooser.Dependencies;
+using MapChooser.Contract;
 using MapChooser.Helpers;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Menu.Components;
 using SwiftlyS2.Shared.Players;
+using SwiftlyS2.Shared.Translation;
 using System.Threading.Tasks;
 
 namespace MapChooser.Menu;
 
+/// <summary>The Start a vote page: every map as a toggle, and a button that starts a vote on the ones ticked.</summary>
 public class AdminMapsVoteMenu
 {
     private readonly ISwiftlyCore _core;
     private readonly MapLister _mapLister;
-    private readonly HashSet<string> _selectedMaps = new();
+    private readonly EndOfMapVoteManager _eofManager;
 
-    public AdminMapsVoteMenu(ISwiftlyCore core, MapLister mapLister)
+    public AdminMapsVoteMenu(ISwiftlyCore core, MapLister mapLister, EndOfMapVoteManager eofManager)
     {
         _core = core;
         _mapLister = mapLister;
+        _eofManager = eofManager;
     }
 
-    public void Show(IPlayer player, Action<IPlayer, List<string>> onStartVote)
+    /// <param name="startVote">Starts the vote on the ticked maps; false when a vote is already running or counting down.</param>
+    public IMenu Build(IPlayer player, Func<List<string>, bool> startVote)
     {
-        var oldSession = _core.Menu.GetSession(player);
-        int? indexToRestore = null;
-        if (oldSession?.Menu.Tag?.ToString() == "AdminMapsVoteMenu")
-        {
-            indexToRestore = oldSession.FocusedIndex;
-        }
-
         var localizer = _core.Translation.GetPlayerLocalizer(player);
-        var builder = _core.Menu.CreateMenu("mapchooser.admin-maps-vote");
-        
-        string title = "Select Maps for Vote:";
-        try { title = localizer["map_chooser.admin_vote.title"]; } catch { }
-        builder.AddHeader(new TitleComponent($"{title} ({_selectedMaps.Count})") { Overflow = MenuTextOverflow.None });
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.StartVote);
+        builder.AddHeader(new TitleComponent(localizer["map_chooser.admin_vote.title"]) { Overflow = MenuTextOverflow.None });
 
-        // Start Vote Option
-        string startText = "START VOTE";
-        try { startText = localizer["map_chooser.admin_vote.start"]; } catch { }
-        var startOption = new ButtonComponent(startText, ctx =>
+        // A toggle flips in place, so ticking a map leaves the page where the player had it.
+        // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
+        var toggles = _mapLister.Maps.Select(map => new ToggleComponent(map.Name) { Tag = map.Name }).ToList();
+        List<string> Ticked(IMenuSession session) => toggles.Where(t => t.GetValue(session)).Select(t => (string)t.Tag!).ToList();
+
+        var startText = localizer["map_chooser.admin_vote.start"];
+        var start = new StartButton(_ => Blocked(localizer) ?? localizer["map_chooser.admin_vote.description"], ctx =>
         {
+            var maps = Ticked(ctx.Session);
             _core.Scheduler.NextTick(() =>
             {
-                ctx.Session.Close();
-
-                StartCountdown(ctx.Player, 5, onStartVote);
+                if (maps.Count == 0) return;
+                if (!startVote(maps))
+                {
+                    ctx.Player.SendChat(localizer["map_chooser.prefix"] + " " + (Blocked(localizer) ?? localizer["map_chooser.admin_vote.running"]));
+                    return;
+                }
+                ctx.Session.Dismiss();
             });
             return ValueTask.CompletedTask;
-        });
-        startOption.Style = startOption.Style.WithColor("#FFA500");
-        startOption.Enabled = _selectedMaps.Count > 0;
-        builder.Add(startOption);
-
-        // Map Options
-        foreach (var map in _mapLister.Maps)
+        })
         {
-            bool isSelected = _selectedMaps.Contains(map.Name);
-            var option = new CheckboxButtonComponent(map.Name, isSelected, ctx =>
-            {
-                if (isSelected)
-                    _selectedMaps.Remove(map.Name);
-                else
-                    _selectedMaps.Add(map.Name);
+            TextProvider = session => Ticked(session).Count is var count and > 0 ? $"{startText} ({count})" : startText,
+            EnabledWhen = session => Blocked(localizer) is null && toggles.Any(t => t.GetValue(session)),
+        };
+        start.Style = start.Style.WithColor("#FFA500");
+        builder.Add(start);
 
-                _core.Scheduler.NextTick(() => Show(player, onStartVote));
-                return ValueTask.CompletedTask;
-            });
-            // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
-            option.Tag = map.Name;
-            builder.Add(option);
-        }
+        foreach (var toggle in toggles)
+            builder.Add(toggle);
 
-        var menu = builder.Build();
-        menu.Tag = "AdminMapsVoteMenu";
-        var session = menu.Open(player);
-
-        if (indexToRestore.HasValue)
-        {
-            session.SetFocus(indexToRestore.Value);
-        }
+        return builder.Build();
     }
 
-    private void StartCountdown(IPlayer admin, int seconds, Action<IPlayer, List<string>> onStartVote)
+    // Why no vote can be started now, or null when one can.
+    private string? Blocked(ILocalizer localizer)
+        => _eofManager.IsVoteActive ? localizer["map_chooser.admin_vote.running"]
+            : _eofManager.IsVoteScheduled ? localizer["map_chooser.admin_vote.scheduled"]
+            : null;
+
+    // Its hint says what it does, or why it can't; a vote opening or closing elsewhere redraws it.
+    private sealed class StartButton(Func<IMenuSession, string> hint, Func<MenuActionContext, ValueTask> onSelect)
+        : ButtonComponent(onSelect: onSelect)
     {
-        if (seconds <= 0)
+        private string? _drawn;
+
+        public override string? GetHint(IMenuSession session, Func<string, string> translate) => hint(session);
+
+        public override bool NeedsRedraw(IMenuSession session, DateTime now)
+            => base.NeedsRedraw(session, now) || State(session) != _drawn;
+
+        public override MenuNode Render(IMenuComponentRenderContext context)
         {
-            onStartVote(admin, _selectedMaps.ToList());
-            return;
+            _drawn = State(context.Session);
+            return base.Render(context);
         }
 
-        var localizer = _core.Translation.GetPlayerLocalizer(admin);
-        _core.PlayerManager.SendChat($"{localizer["map_chooser.prefix"]} Vote starting in [red]{seconds}[default] seconds...");
-        
-        _core.Scheduler.DelayBySeconds(1, () => StartCountdown(admin, seconds - 1, onStartVote));
-    }
-
-    // Inline <font> markup would print literally under the chat renderer, so the two colours are separate nodes.
-    private sealed class CheckboxButtonComponent(string text, bool isChecked, Func<MenuActionContext, ValueTask> onSelect)
-        : ButtonComponent(text, onSelect)
-    {
-        public override MenuNode Render(IMenuComponentRenderContext context) => MenuLineNode.Of(
-            new MenuTextNode(isChecked ? "[X] " : "[ ] ", Style.WithColor(isChecked ? "#008000" : "#FF0000")),
-            base.Render(context));
+        private string State(IMenuSession session) => $"{IsEnabled(session)}|{hint(session)}";
     }
 }

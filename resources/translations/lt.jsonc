@@ -51,6 +51,10 @@
   "map_chooser.vote.map_extended_both": "Dabartinis žemėlapis pratęstas [green]{0}[default] min. ir [green]{1}[default] raundų. [darkred](liko {2} pratęsimų)",
   "map_chooser.admin_vote.title": "Pasirink žemėlapius balsavimui:",
   "map_chooser.admin_vote.start": "PRADĖT BALSAVIMĄ",
+  "map_chooser.admin_vote.description": "Pasirink žemėlapius, kuriuos įtraukti į balsavimą",
+  "map_chooser.admin_vote.running": "Žemėlapių balsavimas jau vyksta",
+  "map_chooser.admin_vote.scheduled": "Balsavimas tuoj prasidės",
+  "map_chooser.admin_vote.starting": "Balsavimas prasidės po [red]{0}[default] s...",
   "map_chooser.general.validation.player_count": "Žemėlapis [darkred]{0}[default] negalimas, nepakankamai žaidėjų.",
   "map_chooser.maplist.check_console": "Žemėlapių sąrašas atspausdintas į tavo konsolę.",
   "map_chooser.maplist.empty": "Nėra sukonfigūruotų žemėlapių.",
@@ -78,5 +82,16 @@
   "map_chooser.cycle.action_move_up": "↑ Aukštyn",
   "map_chooser.cycle.action_move_down": "↓ Žemyn",
   "map_chooser.cycle.action_remove": "✕ Pašalinti",
-  "map_chooser.cycle.action_back": "← Atgal"
+  "map_chooser.cycle.action_back": "← Atgal",
+  "map_chooser.hub.title": "Žemėlapių balsavimas",
+  "map_chooser.hub.vote": "Balsuoti",
+  "map_chooser.hub.nominate": "Nominuoti",
+  "map_chooser.hub.change_map": "Keisti žemėlapį",
+  "map_chooser.hub.set_next_map": "Nustatyti kitą žemėlapį",
+  "map_chooser.hub.start_vote": "Pradėti balsavimą",
+  "map_chooser.hub.cycle": "Žemėlapių ciklas",
+  "map_chooser.hub.empty": "Šiuo metu nėra ko atidaryti.",
+  "map_chooser.nominate.reason.cooldown": "Neseniai žaistas",
+  "map_chooser.nominate.reason.too_few": "Reikia {0} žaidėjų",
+  "map_chooser.nominate.reason.too_many": "Iki {0} žaidėjų"
 }

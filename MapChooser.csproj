@@ -22,6 +22,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- MySqlConnector 2.4.0 arrives transitively via SwiftlyS2.CS2 1.5.0 and is never shipped or
+         loaded by this plugin. Drop once the SDK floor is 1.5.1+ (which depends on 2.6.2). -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-473q-m89c-ghf8" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="resources/gamedata/**/*;resources/templates/**/*;resources/translations/**/*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

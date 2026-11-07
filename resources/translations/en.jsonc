@@ -51,6 +51,10 @@
   "map_chooser.vote.map_extended_both": "Current map extended by [green]{0}[default] minutes and [green]{1}[default] rounds. [darkred]({2} extends left)",
   "map_chooser.admin_vote.title": "Select Maps for Vote:",
   "map_chooser.admin_vote.start": "START VOTE",
+  "map_chooser.admin_vote.description": "Select maps to include in a vote",
+  "map_chooser.admin_vote.running": "A map vote is already running",
+  "map_chooser.admin_vote.scheduled": "A vote is about to start",
+  "map_chooser.admin_vote.starting": "Vote starting in [red]{0}[default] seconds...",
   "map_chooser.general.validation.player_count": "Map [darkred]{0}[default] is not available for the current number of players.",
   "map_chooser.maplist.check_console": "Map list has been printed to your console.",
   "map_chooser.maplist.empty": "There are no maps configured.",
@@ -78,5 +82,16 @@
   "map_chooser.cycle.action_move_up": "↑ Move Up",
   "map_chooser.cycle.action_move_down": "↓ Move Down",
   "map_chooser.cycle.action_remove": "✕ Remove",
-  "map_chooser.cycle.action_back": "← Back"
+  "map_chooser.cycle.action_back": "← Back",
+  "map_chooser.hub.title": "Map vote",
+  "map_chooser.hub.vote": "Vote",
+  "map_chooser.hub.nominate": "Nominate",
+  "map_chooser.hub.change_map": "Change map",
+  "map_chooser.hub.set_next_map": "Set next map",
+  "map_chooser.hub.start_vote": "Start a vote",
+  "map_chooser.hub.cycle": "Map cycle",
+  "map_chooser.hub.empty": "There is nothing to open right now.",
+  "map_chooser.nominate.reason.cooldown": "Played recently",
+  "map_chooser.nominate.reason.too_few": "Needs {0} players",
+  "map_chooser.nominate.reason.too_many": "Up to {0} players"
 }

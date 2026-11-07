@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <AssemblyName>MapChooser.Contract</AssemblyName>
     <RootNamespace>MapChooser.Contract</RootNamespace>
+    <!-- AssemblyVersion stays 1.0.0.0: plugins built against an older contract keep binding to the exported one. -->
+    <Version>1.1.0</Version>
+    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- The XML is worth shipping for the members that carry a real doc comment, without writing
          "Gets the total." on every self-explanatory one. -->

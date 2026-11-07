@@ -3,6 +3,7 @@ using MapChooser.Dependencies;
 using MapChooser.Helpers;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
+using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Players;
 using System.Threading.Tasks;
 
@@ -16,42 +17,31 @@ public class NominateCommand
     private readonly MapLister _mapLister;
     private readonly MapCooldown _mapCooldown;
     private readonly MapChooserConfig _config;
+    private readonly MapChooserMenus _menus;
 
 
-    public NominateCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, MapCooldown mapCooldown, MapChooserConfig config)
+    public NominateCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, MapCooldown mapCooldown, MapChooserConfig config, MapChooserMenus menus)
     {
         _core = core;
         _state = state;
         _mapLister = mapLister;
         _mapCooldown = mapCooldown;
         _config = config;
+        _menus = menus;
     }
 
     public void Execute(ICommandContext context)
     {
-        if (!_config.Rtv.NominationEnabled) return;
         if (!context.IsSentByPlayer) return;
         
         var player = context.Sender!;
+        if (!CanNominate(player)) return;
 
-        if (_state.WarmupRunning)
-        {
-            var localizer = _core.Translation.GetPlayerLocalizer(player);
-            player.SendChat(localizer["map_chooser.prefix"] + " " + localizer["map_chooser.general.validation.warmup"]);
-            return;
-        }
-
-        if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1)
-        {
-            var localizer = _core.Translation.GetPlayerLocalizer(player);
-            player.SendChat(localizer["map_chooser.prefix"] + " " + localizer["map_chooser.general.validation.spectator"]);
-            return;
-        }
         string? mapName = context.Args.Length > 0 ? context.Args[0] : null;
 
         if (string.IsNullOrEmpty(mapName))
         {
-            OpenNominationMenu(player);
+            _menus.Open(player, BuildPage(player));
         }
         else
         {
@@ -59,10 +49,30 @@ public class NominateCommand
         }
     }
 
-    private void OpenNominationMenu(IPlayer player)
+    /// <summary>The nominate page, behind the checks <c>!nominate</c> runs first; null, with the reason in chat, when one fails.</summary>
+    public IMenu? BuildMenu(IPlayer player) => CanNominate(player) ? BuildPage(player) : null;
+
+    private IMenu BuildPage(IPlayer player) => new NominateMenu(_core, _mapLister, _mapCooldown).Build(player, HandleNomination);
+
+    private bool CanNominate(IPlayer player)
     {
-        var menu = new NominateMenu(_core, _mapLister, _mapCooldown);
-        menu.Show(player, HandleNomination);
+        if (!_config.Rtv.NominationEnabled) return false;
+
+        if (_state.WarmupRunning)
+        {
+            var localizer = _core.Translation.GetPlayerLocalizer(player);
+            player.SendChat(localizer["map_chooser.prefix"] + " " + localizer["map_chooser.general.validation.warmup"]);
+            return false;
+        }
+
+        if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1)
+        {
+            var localizer = _core.Translation.GetPlayerLocalizer(player);
+            player.SendChat(localizer["map_chooser.prefix"] + " " + localizer["map_chooser.general.validation.spectator"]);
+            return false;
+        }
+
+        return true;
     }
 
     private void HandleNomination(IPlayer player, string mapName)
@@ -102,7 +112,7 @@ public class NominateCommand
             return;
         }
 
-        _state.Nominations[player.Slot] = map.Name;
+        _state.Nominate(player.Slot, map.Name);
         _core.PlayerManager.SendChat(localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.nominate.success", player.Controller?.PlayerName ?? "Unknown", map.Name]);
     }
 
@@ -113,6 +123,6 @@ public class NominateCommand
 
     public void Clear()
     {
-        _state.Nominations.Clear();
+        _state.ClearNominations();
     }
 }

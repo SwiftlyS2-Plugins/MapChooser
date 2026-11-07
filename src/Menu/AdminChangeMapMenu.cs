@@ -1,4 +1,5 @@
-﻿using MapChooser.Models;
+﻿using MapChooser.Contract;
+using MapChooser.Models;
 using MapChooser.Helpers;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Menu;
@@ -18,10 +19,10 @@ public class AdminChangeMapMenu
         _mapLister = mapLister;
     }
 
-    public void Show(IPlayer player, Action<IPlayer, string> onChangeMap)
+    public IMenu Build(IPlayer player, Action<IPlayer, string> onChangeMap)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
-        var builder = _core.Menu.CreateMenu("mapchooser.admin-change-map");
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.ChangeMap);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.change_map.title"] ?? "Change map to:") { Overflow = MenuTextOverflow.None });
         foreach (var map in _mapLister.Maps)
         {
@@ -29,7 +30,7 @@ public class AdminChangeMapMenu
             {
                 _core.Scheduler.NextTick(() => {
                     onChangeMap(ctx.Player, map.Name);
-                    ctx.Session.Close();
+                    ctx.Session.Dismiss();
                 });
                 return ValueTask.CompletedTask;
             });
@@ -40,7 +41,6 @@ public class AdminChangeMapMenu
             builder.Add(option);
         }
 
-        var menu = builder.Build().WithDefaultOption();
-        menu.Open(player);
+        return builder.Build().WithDefaultOption();
     }
 }

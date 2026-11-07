@@ -51,6 +51,10 @@
   "map_chooser.vote.map_extended_both": "Nykyistä karttaa jatkettu [green]{0}[default] minuutilla ja [green]{1}[default] kierroksella. [darkred]({2} jatkoa jäljellä)",
   "map_chooser.admin_vote.title": "Valitse kartat äänestykseen:",
   "map_chooser.admin_vote.start": "ALOITA ÄÄNESTYS",
+  "map_chooser.admin_vote.description": "Valitse kartat, jotka otetaan mukaan äänestykseen",
+  "map_chooser.admin_vote.running": "Kartta-äänestys on jo käynnissä",
+  "map_chooser.admin_vote.scheduled": "Äänestys on alkamassa",
+  "map_chooser.admin_vote.starting": "Äänestys alkaa [red]{0}[default] sekunnin kuluttua...",
   "map_chooser.general.validation.player_count": "Kartta [darkred]{0}[default] ei ole saatavilla nykyiselle pelaajamäärälle.",
   "map_chooser.maplist.check_console": "Karttaluettelo on tulostettu konsoliisi.",
   "map_chooser.maplist.empty": "Karttoja ei ole määritetty.",
@@ -78,5 +82,16 @@
   "map_chooser.cycle.action_move_up": "↑ Siirrä ylös",
   "map_chooser.cycle.action_move_down": "↓ Siirrä alas",
   "map_chooser.cycle.action_remove": "✕ Poista",
-  "map_chooser.cycle.action_back": "← Takaisin"
+  "map_chooser.cycle.action_back": "← Takaisin",
+  "map_chooser.hub.title": "Karttaäänestys",
+  "map_chooser.hub.vote": "Äänestä",
+  "map_chooser.hub.nominate": "Ehdota",
+  "map_chooser.hub.change_map": "Vaihda kartta",
+  "map_chooser.hub.set_next_map": "Aseta seuraava kartta",
+  "map_chooser.hub.start_vote": "Aloita äänestys",
+  "map_chooser.hub.cycle": "Karttakierto",
+  "map_chooser.hub.empty": "Tällä hetkellä ei ole mitään avattavaa.",
+  "map_chooser.nominate.reason.cooldown": "Pelattu äskettäin",
+  "map_chooser.nominate.reason.too_few": "Vaatii {0} pelaajaa",
+  "map_chooser.nominate.reason.too_many": "Enintään {0} pelaajaa"
 }

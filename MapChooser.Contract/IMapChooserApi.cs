@@ -33,4 +33,37 @@ public interface IMapChooserApi
 
     /// <summary>A pool map by the name its menus and ballot show, case-insensitively; null for any other name, <see cref="ExtendOption"/> included.</summary>
     MapChooserMap? GetMap(string name);
+
+    /// <summary>Seconds until the running vote closes, rounded up; 0 when no vote is running.</summary>
+    int VoteSecondsLeft { get; }
+
+    /// <summary>Players who may vote in the running vote: connected humans, spectators only where MapChooser lets them vote. 0 when no vote is running.</summary>
+    int EligibleVoters { get; }
+
+    /// <summary>How many more times the current map can be extended.</summary>
+    int ExtendsLeft { get; }
+
+    /// <summary>Minutes an extend adds to <c>mp_timelimit</c>; 0 when the map has no time limit.</summary>
+    int ExtendMinutes { get; }
+
+    /// <summary>Rounds an extend adds to <c>mp_maxrounds</c>; 0 when the map has no round limit.</summary>
+    int ExtendRounds { get; }
+
+    /// <summary>Seconds left on the current map under <c>mp_timelimit</c>; null without a time limit or during warmup. Read on the game thread.</summary>
+    int? MapSecondsLeft { get; }
+
+    /// <summary>Rounds left on the current map under <c>mp_maxrounds</c>; null without a round limit or during warmup. Read on the game thread.</summary>
+    int? MapRoundsLeft { get; }
+
+    /// <summary>The maps nominated for the next vote, each once, by the name <see cref="GetMap"/> takes.</summary>
+    IReadOnlyList<string> Nominations { get; }
+
+    /// <summary>The map this player nominated, or null.</summary>
+    string? GetPlayerNomination(int playerSlot);
+
+    /// <summary>Raised on the game thread when a nomination is made, replaced or cleared.</summary>
+    event Action? NominationsChanged;
+
+    /// <summary>Whether a pool map can be nominated or voted for now, and if not, why. Read on the game thread.</summary>
+    MapChooserAvailability GetAvailability(string name);
 }

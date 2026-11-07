@@ -57,6 +57,7 @@ public class CycleConfig
 
 public class CommandsConfig
 {
+    public string Menu { get; set; } = "maps,mapmenu";
     public string Rtv { get; set; } = "rtv";
     public string UnRtv { get; set; } = "unrtv";
     public string Nominate { get; set; } = "nominate,nom,yd";
@@ -68,7 +69,7 @@ public class CommandsConfig
     public string Extend { get; set; } = "ext,extendmap";
     public string MapsVote { get; set; } = "mapsvote";
     public string ChangeMap { get; set; } = "map,setmap";
-    public string MapList { get; set; } = "maplist,maps";
+    public string MapList { get; set; } = "maplist";
     public string AddMap { get; set; } = "addmap";
     public string RemoveMap { get; set; } = "removemap";
     public string CycleMenu { get; set; } = "cyclemenu,mapcycle";

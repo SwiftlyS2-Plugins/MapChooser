@@ -34,4 +34,20 @@ public class PluginState
     /// </summary>
     public bool MapSwitchInFlight { get; set; }
     public Dictionary<int, string> Nominations { get; set; } = new();
+
+    /// <summary>Raised after <see cref="Nominate"/> or <see cref="ClearNominations"/> changed <see cref="Nominations"/>.</summary>
+    public event Action? NominationsChanged;
+
+    public void Nominate(int playerSlot, string map)
+    {
+        Nominations[playerSlot] = map;
+        NominationsChanged?.Invoke();
+    }
+
+    public void ClearNominations()
+    {
+        if (Nominations.Count == 0) return;
+        Nominations.Clear();
+        NominationsChanged?.Invoke();
+    }
 }

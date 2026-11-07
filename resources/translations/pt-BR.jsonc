@@ -51,6 +51,10 @@
   "map_chooser.vote.map_extended_both": "Mapa atual estendido por [green]{0}[default] minutos e [green]{1}[default] rounds. ([darkred]{2}[default] extensões restantes)",
   "map_chooser.admin_vote.title": "Selecionar mapas para votação:",
   "map_chooser.admin_vote.start": "INICIAR VOTAÇÃO",
+  "map_chooser.admin_vote.description": "Selecione os mapas para incluir na votação",
+  "map_chooser.admin_vote.running": "Uma votação de mapa já está em andamento",
+  "map_chooser.admin_vote.scheduled": "Uma votação está prestes a começar",
+  "map_chooser.admin_vote.starting": "Votação começando em [red]{0}[default] segundos...",
   "map_chooser.general.validation.player_count": "Mapa [darkred]{0}[default] não está disponível para a quantidade atual de jogadores.",
   "map_chooser.maplist.check_console": "Lista de mapas foi exibida no seu console.",
   "map_chooser.maplist.empty": "Não há mapas configurados.",
@@ -78,5 +82,16 @@
   "map_chooser.cycle.action_move_up": "↑ Mover para cima",
   "map_chooser.cycle.action_move_down": "↓ Mover para baixo",
   "map_chooser.cycle.action_remove": "✕ Remover",
-  "map_chooser.cycle.action_back": "← Voltar"
+  "map_chooser.cycle.action_back": "← Voltar",
+  "map_chooser.hub.title": "Votação de mapa",
+  "map_chooser.hub.vote": "Votar",
+  "map_chooser.hub.nominate": "Nomear",
+  "map_chooser.hub.change_map": "Alterar mapa",
+  "map_chooser.hub.set_next_map": "Definir próximo mapa",
+  "map_chooser.hub.start_vote": "Iniciar votação",
+  "map_chooser.hub.cycle": "Ciclo de mapas",
+  "map_chooser.hub.empty": "Não há nada para abrir no momento.",
+  "map_chooser.nominate.reason.cooldown": "Jogado recentemente",
+  "map_chooser.nominate.reason.too_few": "Precisa de {0} jogadores",
+  "map_chooser.nominate.reason.too_many": "Até {0} jogadores"
 }

@@ -39,6 +39,7 @@
         },
         "MapsInCooldown": 3,
         "Commands": {
+            "Menu": "maps,mapmenu",
             "Rtv": "rtv",
             "UnRtv": "unrtv",
             "Nominate": "nominate,nom,yd",
@@ -49,7 +50,7 @@
             "SetNextMap": "setnextmap",
             "Extend": "ext,extendmap",
             "MapsVote": "mapsvote",
-            "MapList": "maplist,maps",
+            "MapList": "maplist",
             "AddMap": "addmap",
             "RemoveMap": "removemap",
             "CycleMenu": "cyclemenu,mapcycle"
