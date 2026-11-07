@@ -3,6 +3,7 @@ using MapChooser.Helpers;
 using MapChooser.Menu;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
+using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Players;
 
 namespace MapChooser.Commands;
@@ -13,13 +14,15 @@ public class AdminChangeMapCommand
     private readonly PluginState _state;
     private readonly MapLister _mapLister;
     private readonly ChangeMapManager _changeMapManager;
+    private readonly MapChooserMenus _menus;
 
-    public AdminChangeMapCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, ChangeMapManager changeMapManager)
+    public AdminChangeMapCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, ChangeMapManager changeMapManager, MapChooserMenus menus)
     {
         _core = core;
         _state = state;
         _mapLister = mapLister;
         _changeMapManager = changeMapManager;
+        _menus = menus;
     }
 
     public void Execute(ICommandContext context)
@@ -34,8 +37,7 @@ public class AdminChangeMapCommand
                 return;
             }
 
-            var menu = new AdminChangeMapMenu(_core, _mapLister);
-            menu.Show(player!, HandleChangeMap);
+            _menus.Open(player!, BuildMenu(player!));
             return;
         }
 
@@ -67,6 +69,9 @@ public class AdminChangeMapCommand
         _state.NextMap = mapInfo.Name;
         _changeMapManager.ChangeMap();
     }
+
+    /// <summary>The change-map page; the command's permission is the only check before it.</summary>
+    public IMenu BuildMenu(IPlayer player) => new AdminChangeMapMenu(_core, _mapLister).Build(player, HandleChangeMap);
 
     private void HandleChangeMap(IPlayer player, string mapName)
     {

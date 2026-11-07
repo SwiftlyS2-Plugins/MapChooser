@@ -1,3 +1,4 @@
+using MapChooser.Contract;
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
@@ -20,11 +21,11 @@ public class SetNextMapMenu
         _mapLister = mapLister;
     }
 
-    public void Show(IPlayer player, Action<IPlayer, string> onSelect)
+    public IMenu Build(IPlayer player, Action<IPlayer, string> onSelect)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         var currentMapName = _core.ConVar.FindAsString("mapname")?.ValueAsString;
-        var builder = _core.Menu.CreateMenu("mapchooser.set-next-map");
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.SetNextMap);
         string title = "Set Next Map:";
         try {
             title = localizer["map_chooser.setnextmap.title"] ?? "Set Next Map:";
@@ -40,7 +41,7 @@ public class SetNextMapMenu
             {
                 _core.Scheduler.NextTick(() => {
                     onSelect(ctx.Player, map.Name);
-                    ctx.Session.Close();
+                    ctx.Session.Dismiss();
                 });
                 return ValueTask.CompletedTask;
             });
@@ -51,7 +52,6 @@ public class SetNextMapMenu
             builder.Add(option);
         }
 
-        var menu = builder.Build().WithDefaultOption();
-        menu.Open(player);
+        return builder.Build().WithDefaultOption();
     }
 }

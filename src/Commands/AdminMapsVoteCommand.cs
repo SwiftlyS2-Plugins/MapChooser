@@ -3,6 +3,7 @@ using MapChooser.Dependencies;
 using MapChooser.Helpers;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
+using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Players;
 using MapChooser.Menu;
 
@@ -15,14 +16,16 @@ public class AdminMapsVoteCommand
     private readonly MapLister _mapLister;
     private readonly EndOfMapVoteManager _eofManager;
     private readonly MapChooserConfig _config;
+    private readonly MapChooserMenus _menus;
 
-    public AdminMapsVoteCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, EndOfMapVoteManager eofManager, MapChooserConfig config)
+    public AdminMapsVoteCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, EndOfMapVoteManager eofManager, MapChooserConfig config, MapChooserMenus menus)
     {
         _core = core;
         _state = state;
         _mapLister = mapLister;
         _eofManager = eofManager;
         _config = config;
+        _menus = menus;
     }
 
     public void Execute(ICommandContext context)
@@ -34,10 +37,12 @@ public class AdminMapsVoteCommand
         }
 
         var player = context.Sender!;
-        var menu = new AdminMapsVoteMenu(_core, _mapLister);
-        menu.Show(player, (p, maps) =>
-        {
-            _eofManager.StartCustomVote(maps, _config.EndOfMap.VoteDuration, false);
-        });
+        _menus.Open(player, BuildMenu(player));
     }
+
+    /// <summary>The page that starts a vote on the maps an admin ticks; the command's permission is the only check before it.</summary>
+    public IMenu BuildMenu(IPlayer player) => new AdminMapsVoteMenu(_core, _mapLister, _eofManager).Build(player,
+        maps => _eofManager.ScheduleCustomVote(maps, CountdownSeconds, _config.EndOfMap.VoteDuration));
+
+    private const int CountdownSeconds = 5;
 }

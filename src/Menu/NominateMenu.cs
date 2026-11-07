@@ -1,3 +1,4 @@
+using MapChooser.Contract;
 using MapChooser.Models;
 using MapChooser.Dependencies;
 using MapChooser.Helpers;
@@ -5,6 +6,7 @@ using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Menu.Components;
 using SwiftlyS2.Shared.Players;
+using SwiftlyS2.Shared.Translation;
 using System.Threading.Tasks;
 
 namespace MapChooser.Menu;
@@ -22,47 +24,46 @@ public class NominateMenu
         _mapCooldown = mapCooldown;
     }
 
-    public void Show(IPlayer player, Action<IPlayer, string> onNominate)
+    public IMenu Build(IPlayer player, Action<IPlayer, string> onNominate)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         _core.TryGetEngineSnapshot(out var currentMapId, out var currentWorkshopId, out _);
-        var builder = _core.Menu.CreateMenu("mapchooser.nominate");
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.Nominate);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.nominate.title"] ?? "Nominate a map:") { Overflow = MenuTextOverflow.None });
-        var playerCount = _core.PlayerManager.GetAllPlayers()
-            .Count(p => p.IsValid && !p.IsFakeClient);
+        var playerCount = MapAvailability.CountHumans(_core);
         foreach (var map in _mapLister.Maps)
         {
-            if (IsCurrentMap(map, currentMapId, currentWorkshopId)) continue;
-            if (_mapCooldown.IsMapInCooldown(map)) continue;
-            if (!map.IsValidForPlayerCount(playerCount)) continue;
+            var availability = MapAvailability.Of(map, currentMapId, currentWorkshopId, _mapCooldown, playerCount);
+            if (availability == MapChooserAvailability.CurrentMap) continue;
 
             var option = new ButtonComponent(map.Name, ctx =>
             {
                 _core.Scheduler.NextTick(() => {
                     onNominate(ctx.Player, map.Name);
-                    ctx.Session.Close();
+                    ctx.Session.Dismiss();
                 });
                 return ValueTask.CompletedTask;
             });
             option.Style = option.Style.WithColor("#90EE90");
             // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
             option.Tag = map.Name;
+            if (Reason(localizer, map, availability) is { } reason)
+            {
+                option.Enabled = false;
+                option.Comment = reason;
+            }
 
             builder.Add(option);
         }
 
-        var menu = builder.Build().WithDefaultOption();
-        menu.Open(player);
+        return builder.Build().WithDefaultOption();
     }
 
-    private static bool IsCurrentMap(Map map, string? currentMapId, string? currentWorkshopId)
+    private static string? Reason(ILocalizer localizer, Map map, MapChooserAvailability availability) => availability switch
     {
-        if (string.IsNullOrEmpty(currentMapId) && string.IsNullOrEmpty(currentWorkshopId)) return false;
-        if (map.Id != null)
-        {
-            if (!string.IsNullOrEmpty(currentMapId) && map.Id.Equals(currentMapId, StringComparison.OrdinalIgnoreCase)) return true;
-            if (!string.IsNullOrEmpty(currentWorkshopId) && map.Id.Equals(currentWorkshopId, StringComparison.OrdinalIgnoreCase)) return true;
-        }
-        return false;
-    }
+        MapChooserAvailability.Cooldown => localizer["map_chooser.nominate.reason.cooldown"],
+        MapChooserAvailability.TooFewPlayers => localizer["map_chooser.nominate.reason.too_few", map.MinPlayers],
+        MapChooserAvailability.TooManyPlayers => localizer["map_chooser.nominate.reason.too_many", map.MaxPlayers],
+        _ => null,
+    };
 }

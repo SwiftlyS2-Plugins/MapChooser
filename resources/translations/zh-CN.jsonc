@@ -51,6 +51,10 @@
   "map_chooser.vote.map_extended_both": "当前地图已延长 [green]{0}[default] 分钟 和 [green]{1}[default] 回合。 [darkred]({2} 次延长剩余)",
   "map_chooser.admin_vote.title": "选择用于投票的地图：",
   "map_chooser.admin_vote.start": "开始投票",
+  "map_chooser.admin_vote.description": "选择要加入投票的地图",
+  "map_chooser.admin_vote.running": "地图投票已在进行中",
+  "map_chooser.admin_vote.scheduled": "投票即将开始",
+  "map_chooser.admin_vote.starting": "投票将在 [red]{0}[default] 秒后开始...",
   "map_chooser.general.validation.player_count": "地图 [darkred]{0}[default] 不适用于当前玩家人数。",
   "map_chooser.maplist.check_console": "地图列表已打印到你的控制台。",
   "map_chooser.maplist.empty": "没有配置任何地图。",
@@ -78,5 +82,16 @@
   "map_chooser.cycle.action_move_up": "↑ 上移",
   "map_chooser.cycle.action_move_down": "↓ 下移",
   "map_chooser.cycle.action_remove": "✕ 移除",
-  "map_chooser.cycle.action_back": "← 返回"
+  "map_chooser.cycle.action_back": "← 返回",
+  "map_chooser.hub.title": "地图投票",
+  "map_chooser.hub.vote": "投票",
+  "map_chooser.hub.nominate": "提名",
+  "map_chooser.hub.change_map": "更换地图",
+  "map_chooser.hub.set_next_map": "设置下一张地图",
+  "map_chooser.hub.start_vote": "发起投票",
+  "map_chooser.hub.cycle": "地图循环",
+  "map_chooser.hub.empty": "当前没有可打开的内容。",
+  "map_chooser.nominate.reason.cooldown": "最近玩过",
+  "map_chooser.nominate.reason.too_few": "需要 {0} 名玩家",
+  "map_chooser.nominate.reason.too_many": "最多 {0} 名玩家"
 }

@@ -21,18 +21,11 @@ public class EndOfMapVoteMenu
         _mapCooldown = mapCooldown;
     }
 
-    public IMenu Show(IPlayer player, List<string> mapsInVote, Action<IPlayer, string> onVote, bool disableExit = false)
-    {
-        var menu = Build(player, mapsInVote, onVote, disableExit);
-        menu.Open(player);
-        return menu;
-    }
-
-    private IMenu Build(IPlayer player, List<string> mapsInVote, Action<IPlayer, string> onVote, bool disableExit)
+    public IMenu Build(IPlayer player, List<string> mapsInVote, Action<IPlayer, string> onVote, bool disableExit = false)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         // WithAction registers the unbound Close for the whole menu id, so the closable variant needs an id of its own.
-        var builder = _core.Menu.CreateMenu(disableExit ? "mapchooser.eof-vote.locked" : "mapchooser.eof-vote");
+        var builder = _core.Menu.CreateMenu(disableExit ? MapChooserMenuIds.LockedVote : MapChooserMenuIds.Vote);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.vote.title"] ?? "Vote for the next map:") { Overflow = MenuTextOverflow.None });
         if (disableExit)
         {

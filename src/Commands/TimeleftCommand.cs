@@ -34,22 +34,10 @@ public class TimeleftCommand
             return;
         }
 
-        var timelimitConVar = _core.ConVar.Find<float>("mp_timelimit");
-        var maxroundsConVar = _core.ConVar.Find<int>("mp_maxrounds");
-        var winlimitConVar = _core.ConVar.Find<int>("mp_winlimit");
-
-        float timelimit = timelimitConVar?.Value ?? 0;
-        int maxrounds = maxroundsConVar?.Value ?? 0;
-        int winlimit = winlimitConVar?.Value ?? 0;
-
         string text;
 
-        if (timelimit > 0)
+        if (MapTimeLeft.Seconds(_core, _state) is { } timeRemaining)
         {
-            float currentTime = _core.TryGetCurrentTime();
-            float timePlayed = currentTime - _state.MapStartTime;
-            float timeRemaining = (timelimit * 60) - timePlayed;
-
             if (timeRemaining > 1)
             {
                 TimeSpan remaining = TimeSpan.FromSeconds(timeRemaining);
@@ -71,30 +59,8 @@ public class TimeleftCommand
                 text = localizer["map_chooser.timeleft.time_over"];
             }
         }
-        else if (maxrounds > 0)
+        else if (MapTimeLeft.Rounds(_core, _state, ex => _core.Logger.LogWarning(ex, "GameRules not available in TimeleftCommand - using default values")) is { } roundsRemaining)
         {
-            int totalRoundsPlayed;
-            int maxTeamScore;
-            try
-            {
-                totalRoundsPlayed = _core.Game.MatchData.TerroristScoreTotal + _core.Game.MatchData.CTScoreTotal;
-                maxTeamScore = Math.Max(_core.Game.MatchData.TerroristScoreTotal, _core.Game.MatchData.CTScoreTotal);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _core.Logger.LogWarning(ex, "GameRules not available in TimeleftCommand - using default values");
-                totalRoundsPlayed = 0;
-                maxTeamScore = 0;
-            }
-            int roundsRemaining = maxrounds - totalRoundsPlayed;
-
-            if (winlimit == 0)
-            {
-                // CS2 ends when a team wins (maxrounds/2)+1 rounds even without explicit mp_winlimit
-                int effectiveWinlimit = maxrounds / 2 + 1;
-                roundsRemaining = Math.Min(roundsRemaining, effectiveWinlimit - maxTeamScore);
-            }
-
             if (roundsRemaining > 1)
             {
                 text = localizer["map_chooser.timeleft.remaining_rounds", roundsRemaining];

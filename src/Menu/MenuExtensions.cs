@@ -16,6 +16,13 @@ internal static class MenuExtensions
         return menu;
     }
 
+    /// <summary>Closes a page whose job is done. <see cref="IMenuSession.Close"/> would return to its parent, the hub, which only the close key should do.</summary>
+    public static void Dismiss(this IMenuSession session)
+    {
+        session.Menu.Parent = null;
+        session.Close();
+    }
+
     private sealed class NoOptionsComponent : TextComponent
     {
         public override MenuNode Render(IMenuComponentRenderContext context)

@@ -31,13 +31,30 @@ public class EndOfMapVoteManager
     private int _voteSessionId = 0;
     private readonly Dictionary<int, IMenu> _activeVoteMenus = new();
     private IReadOnlyList<string> _ballot = Array.Empty<string>();
+    private bool _voteScheduled;
+    private int _scheduleId;
 
     // MapChooserApi forwards both to other plugins. Raised on the game thread once MapChooser's own
     // work for the change is done, so a subscriber always reads the new state.
     public event Action? VoteChanged;
     public event Action<int, string>? PlayerVoted;
 
+    /// <summary>The hub a closable ballot opens under; assigned after construction, since the hub's Vote entry needs this manager.</summary>
+    public MapChooserMenus? Menus { get; set; }
+
     public bool IsVoteActive => _voteActive;
+
+    /// <summary>A vote an admin started that is still counting down to open.</summary>
+    public bool IsVoteScheduled => _voteScheduled;
+
+    /// <summary>Seconds until the running vote closes, rounded up; 0 when none is running.</summary>
+    public int SecondsLeft => _voteActive ? (int)Math.Max(0, Math.Ceiling((_voteEndTime - DateTime.Now).TotalSeconds)) : 0;
+
+    /// <summary>Who gets a ballot: valid humans, spectators only when <c>AllowSpectatorsToVote</c> is on.</summary>
+    public bool CanVote(IPlayer player)
+        => player.IsValid && !player.IsFakeClient && (_config.AllowSpectatorsToVote || player.Controller?.TeamNum != 1);
+
+    public int EligibleVoters => _voteActive ? _core.PlayerManager.GetAllPlayers().Count(CanVote) : 0;
 
     // _mapsInVote outlives its vote (only ResetVote clears it), hence the _voteActive gate.
     public IReadOnlyList<string> VoteOptions => _voteActive ? _ballot : Array.Empty<string>();
@@ -95,6 +112,8 @@ public class EndOfMapVoteManager
         bool wasActive = _voteActive;
         _voteSessionId++;
         _voteActive = false;
+        _voteScheduled = false;
+        _scheduleId++;
         _state.EofVoteHappening = false;
         _state.EofVoteCompleted = false;
         _isRtvVote = false;
@@ -104,7 +123,7 @@ public class EndOfMapVoteManager
             var session = _core.Menu.GetSession(player);
             if (session?.Menu.Tag?.ToString() == "EofVoteMenu")
             {
-                session.Close();
+                session.Dismiss();
             }
         }
 
@@ -223,6 +242,32 @@ public class EndOfMapVoteManager
         VoteChanged?.Invoke();
     }
 
+    /// <summary>Opens a vote on these maps after a countdown in chat; false, scheduling nothing, while a vote is running or counting down.</summary>
+    public bool ScheduleCustomVote(List<string> maps, int countdownSeconds, int voteDuration)
+    {
+        if (_voteActive || _voteScheduled) return false;
+
+        _voteScheduled = true;
+        CountDown(++_scheduleId, countdownSeconds, maps, voteDuration);
+        return true;
+    }
+
+    private void CountDown(int scheduleId, int seconds, List<string> maps, int voteDuration)
+    {
+        if (scheduleId != _scheduleId || !_voteScheduled) return;
+
+        // The end of map's vote or an rtv opened first: that one stands.
+        if (_voteActive || seconds <= 0)
+        {
+            _voteScheduled = false;
+            if (!_voteActive) StartCustomVote(maps, voteDuration);
+            return;
+        }
+
+        _core.PlayerManager.SendChat(_core.Localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.admin_vote.starting", seconds]);
+        _core.Scheduler.DelayBySeconds(1, () => CountDown(scheduleId, seconds - 1, maps, voteDuration));
+    }
+
     public void StartCustomVote(List<string> maps, int voteDuration, bool changeImmediately = false)
     {
         if (_voteActive) return;
@@ -257,9 +302,7 @@ public class EndOfMapVoteManager
         if (!_voteActive) return;
         if (sessionId != _voteSessionId) return;
 
-        int timeRemaining = (int)Math.Max(0, Math.Ceiling((_voteEndTime - DateTime.Now).TotalSeconds));
-        
-        if (timeRemaining <= 0)
+        if (SecondsLeft <= 0)
         {
             EndVote(sessionId);
             return;
@@ -273,17 +316,16 @@ public class EndOfMapVoteManager
     {
         if (!_voteActive) return;
 
-        int timeRemaining = (int)Math.Max(0, Math.Ceiling((_voteEndTime - DateTime.Now).TotalSeconds));
         foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
         {
             var currentSession = _core.Menu.GetSession(player);
             bool hasEofMenuOpen = currentSession?.Menu.Tag?.ToString() == "EofVoteMenu";
 
-            if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1)
+            if (!CanVote(player))
             {
                 if (hasEofMenuOpen)
                 {
-                    currentSession!.Close();
+                    currentSession!.Dismiss();
                     _activeVoteMenus.Remove(player.Slot);
                 }
                 continue;
@@ -295,60 +337,37 @@ public class EndOfMapVoteManager
 
             if (forceOpen || !_playersReceivedMenu.Contains(player.Slot))
             {
-                OpenVoteMenu(player, timeRemaining);
-                _playersReceivedMenu.Add(player.Slot);
+                OpenVoteMenu(player);
             }
         }
     }
 
-    private void RefreshVoteMenuTitle()
+    /// <summary>The ballot for one player, not yet open; null when no vote is running or they may not vote.</summary>
+    public IMenu? BuildBallot(IPlayer player)
     {
-        if (!_voteActive) return;
+        if (!_voteActive || !CanVote(player)) return null;
 
-        int timeRemaining = (int)Math.Max(0, Math.Ceiling((_voteEndTime - DateTime.Now).TotalSeconds));
-        foreach (var player in _core.PlayerManager.GetAllPlayers().Where(p => p.IsValid))
-        {
-            var currentSession = _core.Menu.GetSession(player);
-            bool hasEofMenuOpen = currentSession?.Menu.Tag?.ToString() == "EofVoteMenu";
-
-            if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1)
-            {
-                if (hasEofMenuOpen)
-                {
-                    currentSession!.Close();
-                    _activeVoteMenus.Remove(player.Slot);
-                }
-                continue;
-            }
-
-            if (!_playersReceivedMenu.Contains(player.Slot))
-            {
-                OpenVoteMenu(player, timeRemaining);
-                _playersReceivedMenu.Add(player.Slot);
-            }
-        }
+        _playersReceivedMenu.Add(player.Slot);
+        var menu = new EndOfMapVoteMenu(_core, _mapCooldown).Build(player, _mapsInVote, RegisterVote, _config.DisableVoteMenuExit);
+        _activeVoteMenus[player.Slot] = menu;
+        return menu;
     }
-    
+
     public void OpenVoteMenu(IPlayer player)
     {
-        if (!_voteActive) return;
-        if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1) return;
-        _playersReceivedMenu.Add(player.Slot);
-        OpenVoteMenu(player, 0);
-    }
+        if (BuildBallot(player) is not { } menu) return;
 
-    public void OpenVoteMenu(IPlayer player, int timeRemaining)
-    {
-        if (!_voteActive || player.IsFakeClient) return;
-        var menu = new EndOfMapVoteMenu(_core, _mapCooldown);
-        var builtMenu = menu.Show(player, _mapsInVote, RegisterVote, _config.DisableVoteMenuExit);
-        _activeVoteMenus[player.Slot] = builtMenu;
+        // The locked ballot gets no parent: the hub would be a way out of having to vote.
+        if (_config.DisableVoteMenuExit || Menus is null)
+            menu.Open(player);
+        else
+            Menus.Open(player, menu);
     }
 
     private void RegisterVote(IPlayer player, string map)
     {
         if (!_voteActive) return;
-        if (!_config.AllowSpectatorsToVote && player.Controller?.TeamNum == 1) return;
+        if (!CanVote(player)) return;
         // The click is applied a tick late, so it can name an option the current ballot lacks.
         if (!_votes.ContainsKey(map)) return;
 
@@ -377,7 +396,7 @@ public class EndOfMapVoteManager
         var currentSession = _core.Menu.GetSession(player);
         if (currentSession?.Menu.Tag?.ToString() == "EofVoteMenu")
         {
-            currentSession.Close();
+            currentSession.Dismiss();
             _activeVoteMenus.Remove(slot);
         }
 
@@ -411,7 +430,7 @@ public class EndOfMapVoteManager
         {
             var session = _core.Menu.GetSession(player);
             if (session?.Menu.Tag?.ToString() == "EofVoteMenu")
-                session.Close();
+                session.Dismiss();
         }
 
         _core.PlayerManager.SendChat(_core.Localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.rtv.vote_cancelled"]);
@@ -484,7 +503,7 @@ public class EndOfMapVoteManager
             {
                 var session = _core.Menu.GetSession(player);
                 if (session?.Menu.Tag?.ToString() == "EofVoteMenu")
-                    session.Close();
+                    session.Dismiss();
             }
             
             _votes.Clear();

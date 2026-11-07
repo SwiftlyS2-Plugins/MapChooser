@@ -12,13 +12,15 @@ using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Events;
 using SwiftlyS2.Shared.GameEventDefinitions;
+using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Misc;
+using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace MapChooser;
 
-[PluginMetadata(Id = "MapChooser", Version = "1.4.0", Name = "Map Chooser", Author = "aga", Description = "Map chooser plugin for SwiftlyS2")]
+[PluginMetadata(Id = "MapChooser", Version = "1.5.0", Name = "Map Chooser", Author = "aga", Description = "Map chooser plugin for SwiftlyS2")]
 public sealed class MapChooser : BasePlugin
 {
     private MapChooserConfig _config = new();
@@ -31,9 +33,11 @@ public sealed class MapChooser : BasePlugin
     private VoteManager _extVoteManager = null!;
     private EndOfMapVoteManager _eofManager = null!;
     private ExtendManager _extendManager = null!;
+    private MapChooserMenus _menus = null!;
 
     private MapCycleManager _cycleManager = null!;
 
+    private MenuCommand _menuCmd = null!;
     private RtvCommand _rtvCmd = null!;
     private UnRtvCommand _unRtvCmd = null!;
     private NominateCommand _nominateCmd = null!;
@@ -50,6 +54,9 @@ public sealed class MapChooser : BasePlugin
     private RemoveMapCommand _removeMapCmd = null!;
 
     private CancellationTokenSource? _checkVoteTimer;
+
+    // Each command alias registered so far, and the Commands setting it came from.
+    private readonly Dictionary<string, string> _registeredAliases = new(StringComparer.OrdinalIgnoreCase);
 
     // Built with the plugin rather than in Load, so it exists whichever of the two SwiftlyS2 calls first.
     private readonly MapChooserApi _api = new();
@@ -91,7 +98,9 @@ public sealed class MapChooser : BasePlugin
         _extVoteManager = new VoteManager();
         _extendManager = new ExtendManager(Core, _state, _config);
         _eofManager = new EndOfMapVoteManager(Core, _state, _rtvVoteManager, _mapLister, _mapCooldown, _changeMapManager, _extendManager, _config);
-        _api.Attach(_eofManager, _mapLister, Core.Logger);
+        _menus = new MapChooserMenus(Core, _config, _eofManager);
+        _eofManager.Menus = _menus;
+        _api.Attach(_eofManager, _mapLister, _state, _mapCooldown, _config, Core, Core.Logger);
 
         var mapsFilePath = Core.Configuration.GetConfigPath("maps.jsonc");
         _cycleManager = new MapCycleManager(Core, _state, _mapLister, _changeMapManager, _config, mapsFilePath);
@@ -103,36 +112,46 @@ public sealed class MapChooser : BasePlugin
         var warmupConVar = Core.ConVar.Find<int>("mp_warmup_period");
         _state.WarmupRunning = warmupConVar?.Value == 1;
 
+        _menuCmd = new MenuCommand(Core, _menus);
         _rtvCmd = new RtvCommand(Core, _state, _rtvVoteManager, _eofManager, _config);
         _unRtvCmd = new UnRtvCommand(Core, _state, _rtvVoteManager, _eofManager, _config);
-        _nominateCmd = new NominateCommand(Core, _state, _mapLister, _mapCooldown, _config);
+        _nominateCmd = new NominateCommand(Core, _state, _mapLister, _mapCooldown, _config, _menus);
         _timeleftCmd = new TimeleftCommand(Core, _state, _config);
         _nextmapCmd = new NextmapCommand(Core, _state, _cycleManager, _config);
         _votemapCmd = new VotemapCommand(Core, _state, _mapLister, _mapCooldown, _changeMapManager, _config);
         _revoteCmd = new RevoteCommand(Core, _state, _eofManager, _config);
-        _setNextMapCmd = new SetNextMapCommand(Core, _state, _mapLister, _changeMapManager);
+        _setNextMapCmd = new SetNextMapCommand(Core, _state, _mapLister, _changeMapManager, _menus);
         _extendCmd = new ExtendCommand(Core, _state, _extVoteManager, _extendManager, _config);
-        _adminMapsVoteCmd = new AdminMapsVoteCommand(Core, _state, _mapLister, _eofManager, _config);
-        _adminChangeMapCmd = new AdminChangeMapCommand(Core, _state, _mapLister, _changeMapManager);
+        _adminMapsVoteCmd = new AdminMapsVoteCommand(Core, _state, _mapLister, _eofManager, _config, _menus);
+        _adminChangeMapCmd = new AdminChangeMapCommand(Core, _state, _mapLister, _changeMapManager, _menus);
         _mapListCmd = new MapListCommand(Core, _mapLister, _mapCooldown);
         _addMapCmd = new AddMapCommand(Core, _cycleManager);
         _removeMapCmd = new RemoveMapCommand(Core, _cycleManager);
 
-        RegisterCommands(_config.Commands.Rtv, _rtvCmd.Execute);
-        RegisterCommands(_config.Commands.UnRtv, _unRtvCmd.Execute);
-        RegisterCommands(_config.Commands.Nominate, _nominateCmd.Execute);
-        RegisterCommands(_config.Commands.Timeleft, _timeleftCmd.Execute);
-        RegisterCommands(_config.Commands.Nextmap, _nextmapCmd.Execute);
-        RegisterCommands(_config.Commands.Votemap, _votemapCmd.Execute);
-        RegisterCommands(_config.Commands.Revote, _revoteCmd.Execute);
-        RegisterCommands(_config.Commands.SetNextMap, _setNextMapCmd.Execute, permission: _config.SetNextMapPermission);
-        RegisterCommands(_config.Commands.Extend, _extendCmd.Execute);
-        RegisterCommands(_config.Commands.MapsVote, _adminMapsVoteCmd.Execute, permission: _config.MapsVotePermission);
-        RegisterCommands(_config.Commands.ChangeMap, _adminChangeMapCmd.Execute, permission: _config.ChangeMapPermission);
-        RegisterCommands(_config.Commands.MapList, _mapListCmd.Execute);
-        RegisterCommands(_config.Commands.AddMap, _addMapCmd.Execute, permission: _config.Cycle.AddMapPermission);
-        RegisterCommands(_config.Commands.RemoveMap, _removeMapCmd.Execute, permission: _config.Cycle.RemoveMapPermission);
-        RegisterCommands(_config.Commands.CycleMenu, ExecuteCycleMenu, permission: _config.Cycle.CycleMenuPermission);
+        _menus.SetPage(MapChooserMenuIds.Vote, _revoteCmd.BuildMenu);
+        _menus.SetPage(MapChooserMenuIds.Nominate, _nominateCmd.BuildMenu);
+        _menus.SetPage(MapChooserMenuIds.ChangeMap, _adminChangeMapCmd.BuildMenu);
+        _menus.SetPage(MapChooserMenuIds.SetNextMap, _setNextMapCmd.BuildMenu);
+        _menus.SetPage(MapChooserMenuIds.StartVote, _adminMapsVoteCmd.BuildMenu);
+        _menus.SetPage(MapChooserMenuIds.Cycle, BuildCycleMenu);
+
+        // The hub first: an alias it shares with a later setting stays the hub's.
+        RegisterCommands(nameof(CommandsConfig.Menu), _config.Commands.Menu, _menuCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.Rtv), _config.Commands.Rtv, _rtvCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.UnRtv), _config.Commands.UnRtv, _unRtvCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.Nominate), _config.Commands.Nominate, _nominateCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.Timeleft), _config.Commands.Timeleft, _timeleftCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.Nextmap), _config.Commands.Nextmap, _nextmapCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.Votemap), _config.Commands.Votemap, _votemapCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.Revote), _config.Commands.Revote, _revoteCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.SetNextMap), _config.Commands.SetNextMap, _setNextMapCmd.Execute, permission: _config.SetNextMapPermission);
+        RegisterCommands(nameof(CommandsConfig.Extend), _config.Commands.Extend, _extendCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.MapsVote), _config.Commands.MapsVote, _adminMapsVoteCmd.Execute, permission: _config.MapsVotePermission);
+        RegisterCommands(nameof(CommandsConfig.ChangeMap), _config.Commands.ChangeMap, _adminChangeMapCmd.Execute, permission: _config.ChangeMapPermission);
+        RegisterCommands(nameof(CommandsConfig.MapList), _config.Commands.MapList, _mapListCmd.Execute);
+        RegisterCommands(nameof(CommandsConfig.AddMap), _config.Commands.AddMap, _addMapCmd.Execute, permission: _config.Cycle.AddMapPermission);
+        RegisterCommands(nameof(CommandsConfig.RemoveMap), _config.Commands.RemoveMap, _removeMapCmd.Execute, permission: _config.Cycle.RemoveMapPermission);
+        RegisterCommands(nameof(CommandsConfig.CycleMenu), _config.Commands.CycleMenu, ExecuteCycleMenu, permission: _config.Cycle.CycleMenuPermission);
 
         Core.GameEvent.HookPost<EventRoundEnd>(OnRoundEnd);
         Core.GameEvent.HookPost<EventRoundStart>(OnRoundStart);
@@ -454,17 +473,28 @@ public sealed class MapChooser : BasePlugin
             context.Reply("This command can only be used by players.");
             return;
         }
-        var menu = new CycleMenu(Core, _mapLister, _cycleManager, _config);
-        menu.Show(context.Sender!);
+        var player = context.Sender!;
+        _menus.Open(player, BuildCycleMenu(player));
     }
 
-    private void RegisterCommands(string commandNames, ICommandService.CommandListener handler, string? permission = null)
+    private IMenu BuildCycleMenu(IPlayer player) => new CycleMenu(Core, _mapLister, _cycleManager, _config).Build(player);
+
+    private void RegisterCommands(string setting, string commandNames, ICommandService.CommandListener handler, string? permission = null)
     {
         var names = commandNames.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var name in names)
         {
             if (!string.IsNullOrWhiteSpace(name))
             {
+                // SwiftlyS2 runs every listener registered under a name, so a second one would run both commands.
+                if (_registeredAliases.TryGetValue(name, out var owner))
+                {
+                    Core.Logger.LogInformation("MapChooser: Commands.{Setting} lists '{Alias}', which Commands.{Owner} already registers, so it was skipped; it can be removed from config.jsonc.",
+                        setting, name, owner);
+                    continue;
+                }
+                _registeredAliases[name] = setting;
+
                 if (permission != null)
                     Core.Command.RegisterCommand(name, handler, permission: permission);
                 else

@@ -1,3 +1,4 @@
+using MapChooser.Contract;
 using MapChooser.Helpers;
 using MapChooser.Models;
 using SwiftlyS2.Shared;
@@ -22,7 +23,7 @@ public class CycleMenu
         _config = config;
     }
 
-    public void Show(IPlayer player)
+    public IMenu Build(IPlayer player)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         var maps = _mapLister.Maps;
@@ -34,7 +35,7 @@ public class CycleMenu
             ? "map_chooser.cycle.mode_random"
             : "map_chooser.cycle.mode_sequential";
 
-        var builder = _core.Menu.CreateMenu("mapchooser.cycle");
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.Cycle);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.menu_title"] + " — " + localizer[modeKey]) { Overflow = MenuTextOverflow.None });
 
         if (maps.Count == 0)
@@ -61,7 +62,9 @@ public class CycleMenu
                 var mapCapture = map;
                 var option = new ButtonComponent(label, ctx =>
                 {
-                    _core.Scheduler.NextTick(() => ShowMapActions(ctx.Player, mapCapture));
+                    // The map's pages have no parent of their own; they bring the list back under the one it had.
+                    var listParent = ctx.Menu.Parent;
+                    _core.Scheduler.NextTick(() => ShowMapActions(ctx.Player, mapCapture, listParent));
                     return System.Threading.Tasks.ValueTask.CompletedTask;
                 });
                 option.Style = option.Style.WithColor(isCurrent ? "#FFFF00" : isNext ? "#90EE90" : "#FFFFFF");
@@ -71,11 +74,17 @@ public class CycleMenu
             }
         }
 
-        var menu = builder.Build();
+        return builder.Build();
+    }
+
+    private void ShowList(IPlayer player, IMenu? parent)
+    {
+        var menu = Build(player);
+        menu.Parent = parent;
         menu.Open(player);
     }
 
-    private void ShowMapActions(IPlayer player, Map map)
+    private void ShowMapActions(IPlayer player, Map map, IMenu? listParent)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         var maps = _mapLister.Maps;
@@ -91,7 +100,7 @@ public class CycleMenu
                 _core.Scheduler.NextTick(() =>
                 {
                     _cycleManager.MoveMapUp(map.Name);
-                    Show(ctx.Player);
+                    ShowList(ctx.Player, listParent);
                 });
                 return System.Threading.Tasks.ValueTask.CompletedTask;
             });
@@ -106,7 +115,7 @@ public class CycleMenu
                 _core.Scheduler.NextTick(() =>
                 {
                     _cycleManager.MoveMapDown(map.Name);
-                    Show(ctx.Player);
+                    ShowList(ctx.Player, listParent);
                 });
                 return System.Threading.Tasks.ValueTask.CompletedTask;
             });
@@ -116,7 +125,7 @@ public class CycleMenu
 
         var removeOption = new ButtonComponent(localizer["map_chooser.cycle.action_remove"], ctx =>
         {
-            _core.Scheduler.NextTick(() => ShowRemoveConfirm(ctx.Player, map));
+            _core.Scheduler.NextTick(() => ShowRemoveConfirm(ctx.Player, map, listParent));
             return System.Threading.Tasks.ValueTask.CompletedTask;
         });
         removeOption.Style = removeOption.Style.WithColor("#FF0000");
@@ -124,7 +133,7 @@ public class CycleMenu
 
         var backOption = new ButtonComponent(localizer["map_chooser.cycle.action_back"], ctx =>
         {
-            _core.Scheduler.NextTick(() => Show(ctx.Player));
+            _core.Scheduler.NextTick(() => ShowList(ctx.Player, listParent));
             return System.Threading.Tasks.ValueTask.CompletedTask;
         });
         backOption.Style = backOption.Style.WithColor("#808080");
@@ -134,7 +143,7 @@ public class CycleMenu
         menu.Open(player);
     }
 
-    private void ShowRemoveConfirm(IPlayer player, Map map)
+    private void ShowRemoveConfirm(IPlayer player, Map map, IMenu? listParent)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
 
@@ -157,7 +166,7 @@ public class CycleMenu
 
         var cancelOption = new ButtonComponent(localizer["map_chooser.cycle.remove_cancel"], ctx =>
         {
-            _core.Scheduler.NextTick(() => Show(ctx.Player));
+            _core.Scheduler.NextTick(() => ShowList(ctx.Player, listParent));
             return System.Threading.Tasks.ValueTask.CompletedTask;
         });
         cancelOption.Style = cancelOption.Style.WithColor("#90EE90");

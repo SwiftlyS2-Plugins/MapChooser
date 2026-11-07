@@ -3,6 +3,7 @@ using MapChooser.Dependencies;
 using MapChooser.Helpers;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
+using SwiftlyS2.Shared.Menu;
 using SwiftlyS2.Shared.Players;
 using MapChooser.Menu;
 
@@ -14,13 +15,15 @@ public class SetNextMapCommand
     private readonly PluginState _state;
     private readonly MapLister _mapLister;
     private readonly ChangeMapManager _changeMapManager;
+    private readonly MapChooserMenus _menus;
 
-    public SetNextMapCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, ChangeMapManager changeMapManager)
+    public SetNextMapCommand(ISwiftlyCore core, PluginState state, MapLister mapLister, ChangeMapManager changeMapManager, MapChooserMenus menus)
     {
         _core = core;
         _state = state;
         _mapLister = mapLister;
         _changeMapManager = changeMapManager;
+        _menus = menus;
     }
 
     public void Execute(ICommandContext context)
@@ -34,12 +37,7 @@ public class SetNextMapCommand
             var player = context.Sender!;
             if (string.IsNullOrEmpty(mapNameArg))
             {
-                var menu = new SetNextMapMenu(_core, _mapLister);
-                menu.Show(player, (p, selectedMap) =>
-                {
-                    _changeMapManager.ScheduleMapChange(selectedMap);
-                    // Log to console or admins?
-                });
+                _menus.Open(player, BuildMenu(player));
                 return;
             }
         }
@@ -75,4 +73,11 @@ public class SetNextMapCommand
         // Optional: Notify that admin set the next map?
         // ChangeMapManager already notifies "Next map will be X"
     }
+
+    /// <summary>The set-next-map page; the command's permission is the only check before it.</summary>
+    public IMenu BuildMenu(IPlayer player) => new SetNextMapMenu(_core, _mapLister).Build(player, (p, selectedMap) =>
+    {
+        _changeMapManager.ScheduleMapChange(selectedMap);
+        // Log to console or admins?
+    });
 }
