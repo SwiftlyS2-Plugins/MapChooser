@@ -37,6 +37,10 @@ public class CycleMenu
 
         var builder = _core.Menu.CreateMenu(MapChooserMenuIds.Cycle);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.menu_title"] + " — " + localizer[modeKey]) { Overflow = MenuTextOverflow.None });
+        // Unbound: a server binds them in menus.jsonc, and a renderer may offer them on each row.
+        DeclareAction(builder, MapChooserCycleActions.MoveUp, localizer["map_chooser.cycle.action_move_up"], 10);
+        DeclareAction(builder, MapChooserCycleActions.MoveDown, localizer["map_chooser.cycle.action_move_down"], 11);
+        DeclareAction(builder, MapChooserCycleActions.Remove, localizer["map_chooser.cycle.action_remove"], 12);
 
         if (maps.Count == 0)
         {
@@ -60,13 +64,12 @@ public class CycleMenu
                 else if (isNext) label += " →";
 
                 var mapCapture = map;
-                var option = new ButtonComponent(label, ctx =>
+                var option = new MapRow(label, ctx =>
                 {
-                    // The map's pages have no parent of their own; they bring the list back under the one it had.
-                    var listParent = ctx.Menu.Parent;
-                    _core.Scheduler.NextTick(() => ShowMapActions(ctx.Player, mapCapture, listParent));
+                    var list = ctx.Menu;
+                    _core.Scheduler.NextTick(() => ShowMapActions(ctx.Player, mapCapture, list));
                     return System.Threading.Tasks.ValueTask.CompletedTask;
-                });
+                }, ctx => ActionFor(ctx, mapCapture));
                 option.Style = option.Style.WithColor(isCurrent ? "#FFFF00" : isNext ? "#90EE90" : "#FFFFFF");
                 // A row's Tag is the map's name, which IMapChooserApi.GetMap resolves.
                 option.Tag = map.Name;
@@ -77,31 +80,70 @@ public class CycleMenu
         return builder.Build();
     }
 
-    private void ShowList(IPlayer player, IMenu? parent)
+    // Core's traversal actions are ordered 0-5, so a bound one's footer hint follows them.
+    private static void DeclareAction(IMenuBuilder builder, string name, string label, int order)
+        => builder.WithAction(new MenuActionDescriptor
+        {
+            Id = new MenuActionId(MapChooserMenuIds.Cycle, name),
+            DefaultKey = MenuKey.None,
+            Label = label,
+            Order = order,
+        });
+
+    private Action? ActionFor(MenuActionContext ctx, Map map)
+    {
+        var name = ctx.Action.Name;
+        var index = IndexOf(map.Name);
+        var player = ctx.Player;
+        var list = ctx.Menu;
+        if (Is(name, MapChooserCycleActions.MoveUp))
+            return index > 0 ? () => Move(player, map, list.Parent, up: true) : null;
+        if (Is(name, MapChooserCycleActions.MoveDown))
+            return index >= 0 && index < _mapLister.Maps.Count - 1 ? () => Move(player, map, list.Parent, up: false) : null;
+        if (Is(name, MapChooserCycleActions.Remove))
+            return index >= 0 ? () => _core.Scheduler.NextTick(() => ShowRemoveConfirm(player, map, list)) : null;
+        return null;
+    }
+
+    private static bool Is(string action, string name) => string.Equals(action, name, StringComparison.OrdinalIgnoreCase);
+
+    private int IndexOf(string name)
+        => _mapLister.Maps.ToList().FindIndex(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    private void Move(IPlayer player, Map map, IMenu? listParent, bool up)
+        => _core.Scheduler.NextTick(() =>
+        {
+            if (up) _cycleManager.MoveMapUp(map.Name);
+            else _cycleManager.MoveMapDown(map.Name);
+            ShowList(player, listParent, map.Name);
+        });
+
+    // Focus lands back on a map just moved, so a bound key moves it on.
+    private void ShowList(IPlayer player, IMenu? parent, string? focus = null)
     {
         var menu = Build(player);
         menu.Parent = parent;
-        menu.Open(player);
+        var session = menu.Open(player);
+        var index = focus is null ? -1 : IndexOf(focus);
+        if (index > 0) session.SetFocus(index);
     }
 
-    private void ShowMapActions(IPlayer player, Map map, IMenu? listParent)
+    // The map's pages open under the list, so their close key returns to it; a change opens a fresh list.
+    private void ShowMapActions(IPlayer player, Map map, IMenu list)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
         var maps = _mapLister.Maps;
+        var listParent = list.Parent;
         int idx = maps.ToList().FindIndex(m => m.Name.Equals(map.Name, StringComparison.OrdinalIgnoreCase));
 
-        var builder = _core.Menu.CreateMenu("mapchooser.cycle-map-actions");
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.CycleMap);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.actions_title", map.Name]) { Overflow = MenuTextOverflow.None });
 
         if (idx > 0)
         {
             var upOption = new ButtonComponent(localizer["map_chooser.cycle.action_move_up"], ctx =>
             {
-                _core.Scheduler.NextTick(() =>
-                {
-                    _cycleManager.MoveMapUp(map.Name);
-                    ShowList(ctx.Player, listParent);
-                });
+                Move(ctx.Player, map, listParent, up: true);
                 return System.Threading.Tasks.ValueTask.CompletedTask;
             });
             upOption.Style = upOption.Style.WithColor("#ADD8E6");
@@ -112,11 +154,7 @@ public class CycleMenu
         {
             var downOption = new ButtonComponent(localizer["map_chooser.cycle.action_move_down"], ctx =>
             {
-                _core.Scheduler.NextTick(() =>
-                {
-                    _cycleManager.MoveMapDown(map.Name);
-                    ShowList(ctx.Player, listParent);
-                });
+                Move(ctx.Player, map, listParent, up: false);
                 return System.Threading.Tasks.ValueTask.CompletedTask;
             });
             downOption.Style = downOption.Style.WithColor("#ADD8E6");
@@ -125,7 +163,7 @@ public class CycleMenu
 
         var removeOption = new ButtonComponent(localizer["map_chooser.cycle.action_remove"], ctx =>
         {
-            _core.Scheduler.NextTick(() => ShowRemoveConfirm(ctx.Player, map, listParent));
+            _core.Scheduler.NextTick(() => ShowRemoveConfirm(ctx.Player, map, list));
             return System.Threading.Tasks.ValueTask.CompletedTask;
         });
         removeOption.Style = removeOption.Style.WithColor("#FF0000");
@@ -140,25 +178,26 @@ public class CycleMenu
         builder.Add(backOption);
 
         var menu = builder.Build();
+        menu.Parent = list;
         menu.Open(player);
     }
 
-    private void ShowRemoveConfirm(IPlayer player, Map map, IMenu? listParent)
+    private void ShowRemoveConfirm(IPlayer player, Map map, IMenu list)
     {
         var localizer = _core.Translation.GetPlayerLocalizer(player);
+        var listParent = list.Parent;
 
-        var builder = _core.Menu.CreateMenu("mapchooser.cycle-remove-confirm");
+        var builder = _core.Menu.CreateMenu(MapChooserMenuIds.CycleRemove);
         builder.AddHeader(new TitleComponent(localizer["map_chooser.cycle.remove_confirm_title", map.Name]) { Overflow = MenuTextOverflow.None });
 
         var yesOption = new ButtonComponent(localizer["map_chooser.cycle.remove_confirm_yes"], ctx =>
         {
             _core.Scheduler.NextTick(() =>
             {
-                ctx.Session.Close();
-
                 bool removed = _cycleManager.RemoveMap(map.Name);
                 if (removed)
                     _core.PlayerManager.SendChat(_core.Localizer["map_chooser.prefix"] + " " + _core.Localizer["map_chooser.cycle.map_removed", map.Name]);
+                ShowList(ctx.Player, listParent);
             });
             return System.Threading.Tasks.ValueTask.CompletedTask;
         });
@@ -175,6 +214,22 @@ public class CycleMenu
         builder.Add(cancelOption);
 
         var menu = builder.Build();
+        menu.Parent = list;
         menu.Open(player);
+    }
+
+    private sealed class MapRow(string text, Func<MenuActionContext, ValueTask> select, Func<MenuActionContext, Action?> actionFor)
+        : ButtonComponent(text, select)
+    {
+        public override async ValueTask<bool> HandleActionAsync(MenuActionContext context)
+        {
+            if (await base.HandleActionAsync(context)) return true;
+            if (actionFor(context) is not { } run) return false;
+            return await ActivateAsync(context, _ =>
+            {
+                run();
+                return ValueTask.CompletedTask;
+            });
+        }
     }
 }

@@ -66,4 +66,7 @@ public interface IMapChooserApi
 
     /// <summary>Whether a pool map can be nominated or voted for now, and if not, why. Read on the game thread.</summary>
     MapChooserAvailability GetAvailability(string name);
+
+    /// <summary>The map the server changes to next, by the name <see cref="GetMap"/> takes: a vote's or an admin's pick, else the cycle's next map while the cycle runs in order. Null while undecided. Read on the game thread.</summary>
+    string? NextMap { get; }
 }

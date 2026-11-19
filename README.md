@@ -1,288 +1,479 @@
 <div align="center">
-  <img src="https://pan.samyyc.dev/s/VYmMXE" />
-  <h2><strong>MapChooser</strong></h2>
-  <h3>A powerful and customizable map voting system for SwiftlyS2.</h3>
+  <img src="https://pan.samyyc.dev/s/VYmMXE" alt="MapChooser logo" />
+  <h1><strong>MapChooser</strong></h1>
+  <p>Map votes for CS2 servers: near the end of each map, on demand, and by admins.</p>
 </div>
 
 <p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status">
-  <img src="https://img.shields.io/github/downloads/SwiftlyS2-Plugins/MapChooser/total" alt="Downloads">
-  <img src="https://img.shields.io/github/stars/SwiftlyS2-Plugins/MapChooser?style=flat&logo=github" alt="Stars">
-  <img src="https://img.shields.io/github/license/SwiftlyS2-Plugins/MapChooser" alt="License">
+  <a href="https://github.com/SwiftlyS2-Plugins/MapChooser/releases/latest"><img src="https://img.shields.io/github/v/release/SwiftlyS2-Plugins/MapChooser?style=flat&logo=github&cacheSeconds=3600" alt="Latest Release"></a>
+  <img src="https://img.shields.io/github/downloads/SwiftlyS2-Plugins/MapChooser/total?style=flat&logo=github&cacheSeconds=3600" alt="Downloads">
+  <img src="https://img.shields.io/github/stars/SwiftlyS2-Plugins/MapChooser?style=flat&logo=github&cacheSeconds=3600" alt="Stars">
 </p>
 
-## Overview
+---
 
-MapChooser is a map voting plugin for SwiftlyS2. It handles Rock The Vote (RTV), map nominations, and manual voting. It also triggers an automated vote at the end of the map based on time or rounds played.
+## ✨ Features
 
-## Commands
+MapChooser picks the next map by vote, from the maps in `maps.jsonc`.
 
-| Command | Description |
-| :--- | :--- |
-| `!maps` / `!mapmenu` | Opens the map menu: the vote, nominations and the admin pages you have access to (see [Menus](#menus)). |
-| `!rtv` | Votes to trigger a map vote immediately (Rock The Vote). |
-| `!nominate [map]` / `!nom` | Nominates a map to be included in the next map vote. |
-| `!timeleft` | Shows the remaining time or rounds left on the current map. |
-| `!nextmap` | Shows which map will be played next (if decided). |
-| `!votemap [map]` | Directly votes for a specific map to change to. |
-| `!revote` | Reopens the map vote menu if a vote is currently active. |
-| `!ext` / `!extendmap` | Votes to extend the current map. |
-| `!maplist` | Prints the full configured map list to the console. |
-| `!unrtv` | Removes your current RTV vote. |
-| `!setnextmap [map]` | Sets the next map directly or opens a selection menu (Admin only). |
-| `!mapsvote` | Opens a menu to select multiple maps and start a custom vote (Admin only). |
-| `!map` / `!setmap` | Loads requested map (Admin only). |
-| `!addmap <name> [id]` | Adds a map to the cycle and saves it to `maps.jsonc` (Admin only). |
-| `!removemap <name>` | Removes a map from the cycle and saves the change to `maps.jsonc` (Admin only). |
-| `!cyclemenu` / `!mapcycle` | Opens the cycle management menu — view order, move maps up/down, remove (Admin only). |
+- 🗳️ **End-of-map vote** — opens near the time or round limit
+- 🔁 **Rock the vote** — enough `!rtv`s start a vote now
+- 📌 **Nominations** — players put maps on the ballot
+- ⏩ **Extends** — from the ballot or `!ext`
+- ⏳ **Cooldown** — recent maps stay off the ballot
+- 👥 **Player limits** — maps offered only within their player range
+- 🔄 **Map cycle** — in order or at random, reordered in game
+- 🛠️ **Admin pages** — change map, set the next one, start a vote
+- 🌐 **Workshop maps** — by ID
+- 🧩 **Shared API** — the vote and nominations, for other plugins
 
-## Configuration (`config.jsonc`)
+---
 
-### RTV Settings (`Rtv`)
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `Enabled` | `true` | Enable or disable the Rock The Vote system. |
-| `EnabledInWarmup` | `false` | Allow players to RTV during warmup. |
-| `NominationEnabled` | `true` | Allow players to nominate maps for the vote. |
-| `MinPlayers` | `0` | Minimum number of players required to enable RTV. |
-| `MinRounds` | `0` | Minimum rounds that must be played before RTV is allowed. |
-| `ChangeMapImmediately` | `true` | Change the map immediately after a successful RTV vote. |
-| `ChangeMapDelay` | `3` | Delay in seconds before changing the map after a successful RTV vote (used when `ChangeMapImmediately` is `false`). |
-| `MapsToShow` | `6` | Number of maps to display in the RTV vote menu. |
-| `VoteDuration` | `30` | How long the vote menu remains open (seconds). |
-| `VotePercentage` | `60` | Percentage of players required to trigger the vote. |
-| `VoteCooldownTime` | `300` | Cooldown time in seconds between failed RTV votes. |
+## 🚀 Installation
 
-### Votemap Settings (`Votemap`)
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `Enabled` | `true` | Enable or disable the manual `!votemap` command. |
-| `VotePercentage` | `60` | Percentage of players required to reach the vote threshold. |
-| `ChangeMapImmediately` | `false` | Change map immediately once the threshold is reached. |
-| `MinPlayers` | `0` | Minimum players required to use `!votemap`. |
+### Requirements
 
-### End Of Map Settings (`EndOfMap`)
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `Enabled` | `true` | Enable or disable the automated vote at the end of the map. |
-| `MapsToShow` | `6` | Number of maps to show in the automated vote. |
-| `VoteDuration` | `30` | Duration of the automated vote menu. |
-| `ChangeMapDelay` | `5` | Delay in seconds before changing the map after the vote ends. |
-| `TriggerSecondsBeforeEnd` | `120` | Seconds before timelimit to trigger the vote. |
-| `TriggerRoundsBeforeEnd` | `4` | Rounds (or score difference from winning) before map end to trigger the vote. |
-| `AllowExtend` | `true` | Allow extending the map from the end-of-map vote menu. |
-| `ExtendTimeStep` | `15` | Minutes to add when extending by time. |
-| `ExtendRoundStep` | `5` | Rounds to add when extending by rounds. |
-| `ExtendLimit` | `3` | Maximum number of times the map can be extended. |
+- SwiftlyS2 1.5.0 or later
 
-### Extend Map Settings (`ExtendMap`)
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `Enabled` | `true` | Enable or disable the `!extend` command. |
-| `EnabledInWarmup` | `false` | Allow players to vote to extend during warmup. |
-| `MinPlayers` | `0` | Minimum players required to use `!extend`. |
-| `MinRounds` | `0` | Minimum rounds required before `!extend` can be used. |
-| `VotePercentage` | `60` | Percentage of players required to pass the extend vote. |
+### Steps
 
-### Cycle Settings (`Cycle`)
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `Enabled` | `false` | Enable automatic advance to the next map in the cycle when a match ends without an end-of-map vote. Disabled by default. |
-| `RandomOrder` | `false` | Pick the next map randomly from the cycle (excluding maps in cooldown) instead of following the configured order. |
-| `AddMapPermission` | `admin.changemap` | Permission flag required for `!addmap`. |
-| `RemoveMapPermission` | `admin.changemap` | Permission flag required for `!removemap`. |
-| `CycleMenuPermission` | `admin.changemap` | Permission flag required for `!cyclemenu` / `!mapcycle`. |
+1. Unzip the release into `addons/swiftlys2/plugins/`.
+2. Restart the server. MapChooser writes `config.jsonc` and an empty `maps.jsonc`.
+3. List your maps in `maps.jsonc` — [maps.jsonc](#mapsjsonc) — and restart, or add them in game with `!addmap`.
 
-### Global Settings
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `MapsInCooldown` | `3` | Number of recently played maps to exclude from the next vote. |
-| `AllowSpectatorsToVote` | `false` | Allow spectators to participate in votes. |
-| `AnnounceVotes` | `true` | Broadcast vote counts to all players during voting. |
-| `DisableVoteMenuExit` | `false` | When `true`, the map vote menu has no close key, so players must pick a map. The menu closes once they have voted. |
-| `DetailedLogging` | `false` | Verbose logging for vote flow and map cycle decisions. |
-| `SetNextMapPermission` | `admin.changemap` | Permission flag required for the `!setnextmap` command. |
-| `MapsVotePermission` | `admin.mapsvote` | Permission flag required for the `!mapsvote` command. |
-| `ChangeMapPermission` | `admin.changemap` | Permission flag required for the `!map` / `!setmap` command. |
-| `Maps` | (List) | List of maps available. Workshop maps accept either a bare numeric ID (e.g. `3124567099`) or the explicit `ws:` prefix (e.g. `ws:3124567099`). |
+Until `maps.jsonc` lists maps, votes offer none and `!maplist` replies `There are no maps configured.`
 
-### Commands Settings (`Commands`)
+### Where things are
 
-All command aliases are fully configurable. Each setting accepts a comma-separated list of aliases.
+| What | Path |
+|------|------|
+| Plugin | `addons/swiftlys2/plugins/MapChooser/` |
+| Config | `addons/swiftlys2/configs/plugins/MapChooser/` — `config.jsonc` and `maps.jsonc` |
+| Translations | `addons/swiftlys2/plugins/MapChooser/resources/translations/` — `en`, `fi`, `lt`, `pt-BR`, `zh-CN` |
+| API contract | `addons/swiftlys2/plugins/MapChooser/resources/exports/MapChooser.Contract.dll` — [Using the API](#-using-the-api) |
 
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `Menu` | `maps,mapmenu` | Aliases for the map menu command. |
-| `Rtv` | `rtv` | Aliases for the Rock The Vote command. |
-| `UnRtv` | `unrtv` | Aliases for the undo RTV command. |
-| `Nominate` | `nominate,nom,yd` | Aliases for the nominate command. |
-| `Timeleft` | `timeleft` | Aliases for the timeleft command. |
-| `Nextmap` | `nextmap` | Aliases for the nextmap command. |
-| `Votemap` | `votemap` | Aliases for the votemap command. |
-| `Revote` | `revote` | Aliases for the revote command. |
-| `SetNextMap` | `setnextmap` | Aliases for the set next map command. |
-| `Extend` | `ext,extendmap` | Aliases for the extend map command. |
-| `MapsVote` | `mapsvote` | Aliases for the admin maps vote command. |
-| `ChangeMap` | `map,setmap` | Aliases for the admin change map command. |
-| `MapList` | `maplist` | Aliases for the map list command. |
-| `AddMap` | `addmap` | Aliases for the add-map admin command. |
-| `RemoveMap` | `removemap` | Aliases for the remove-map admin command. |
-| `CycleMenu` | `cyclemenu,mapcycle` | Aliases for the cycle management menu command. |
+### Verify
 
-An alias is registered once, for the first setting that lists it, starting with `Menu`; a later setting's copy is skipped and logged with the setting to clean up. That is what happens to `maps` in an older `config.jsonc`, whose `MapList` is still `maplist,maps`: `!maps` opens the map menu, and `maps` can be removed from `MapList`.
+| Check | Expect |
+|-------|--------|
+| The config folder | `config.jsonc` and `maps.jsonc` |
+| `!maplist` | Your maps, in your console |
+| `!maps`, as an admin | **Change map**, **Set next map**, **Start a vote** and **Map cycle** |
 
-### Map Configuration
+---
 
-Each map entry supports the following properties:
+## 💬 Commands
 
-| Property | Default | Description |
-| :--- | :--- | :--- |
-| `Name` | (required) | Display name shown in menus and chat. |
-| `Id` | (required) | Map identifier. Use the map name (e.g. `de_dust2`) or a workshop ID (e.g. `3124567099`). |
-| `MinPlayers` | `0` | Minimum number of real players required for this map to appear in votes and nominations. `0` means no minimum. |
-| `MaxPlayers` | `0` | Maximum number of real players allowed for this map to appear in votes and nominations. `0` means no maximum. |
+Chat: `!maps` (or `/maps`). Console: `sw_maps`. A `[map]` is a map's name, or part of one.
 
-> **Note:** Maps without `MinPlayers`/`MaxPlayers` (or set to `0`) are considered valid for any number of players. If you want a map to **only** appear when there are few players, you must also set `MinPlayers` on your other maps to exclude them at low player counts. Bots are not counted.
+### Player commands
 
-#### Example
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `!maps` | `!mapmenu` | Open the map menu — [Menus](#-menus) |
+| `!timeleft` | — | Time or rounds left |
+| `!nextmap` | — | The next map, when known |
+| `!nominate [map]` | `!nom`, `!yd` | Put a map on the next ballot. Without one, opens **Nominate** |
+| `!rtv` | — | Ask for a vote now. Enough players asking starts one |
+| `!unrtv` | — | Take back your `!rtv`, and with it your ballot during a vote |
+| `!revote` | — | Reopen the ballot during a vote |
+| `!votemap [map]` | — | Vote to change to a map. Without one, opens a list |
+| `!ext` | `!extendmap` | Vote to extend the map |
+| `!maplist` | — | The map pool in your console, cooldowns marked |
+
+### Admin commands
+
+Permissions are defaults, changed by the setting in brackets. `""` lets everyone in.
+
+| Command | Aliases | Permission | Description |
+|---------|---------|------------|-------------|
+| `!map [map]` | `!setmap` | `admin.changemap` (`ChangeMapPermission`) | Change map now. Without one, opens **Change map** |
+| `!setnextmap [map]` | — | `admin.changemap` (`SetNextMapPermission`) | Set the map for after this match. Without one, opens **Set next map** |
+| `!mapsvote` | — | `admin.mapsvote` (`MapsVotePermission`) | Open **Start a vote** |
+| `!cyclemenu` | `!mapcycle` | `admin.changemap` (`Cycle.CycleMenuPermission`) | Open **Map cycle** |
+| `!addmap <name> [id]` | — | `admin.changemap` (`Cycle.AddMapPermission`) | Add a map to the end of `maps.jsonc`. `id` defaults to `name` |
+| `!removemap <name>` | — | `admin.changemap` (`Cycle.RemoveMapPermission`) | Remove a map from `maps.jsonc`, by its whole name |
+
+From the server console, `sw_map`, `sw_setnextmap`, `sw_addmap` and `sw_removemap` take the same arguments.
+
+---
+
+## 📋 Menus
+
+```
+Map vote                                               !maps
+├─ Vote             the ballot                         !revote
+├─ Nominate         every map but the current one      !nominate
+├─ Change map       every map                          !map
+├─ Set next map     every map                          !setnextmap
+├─ Start a vote     a toggle per map                   !mapsvote
+└─ Map cycle        every map, in cycle order          !cyclemenu
+   └─ <map>         ↑ Move Up, ↓ Move Down, ✕ Remove, ← Back
+      └─ ✕ Remove   Yes, Remove · Cancel
+```
+
+**Vote** shows during a vote, to players who may vote, unless `DisableVoteMenuExit` is on; **Nominate** while `Rtv.NominationEnabled` is on; each admin page with its command's permission. With none of them, `!maps` replies `There is nothing to open right now.` `!votemap` opens its list outside the map menu.
+
+On **Nominate**, a map that can't be nominated now is greyed out, with the reason: **Played recently**, **Needs 4 players** or **Up to 3 players**. On **Map cycle**, the title shows **Mode: Sequential** or **Mode: Random**, **◄** marks the current map and **→** the next.
+
+### Start a vote
+
+| Row | Shows |
+|-----|-------|
+| **START VOTE** | The maps ticked, as **START VOTE (3)**. Greyed out until one is, and while a vote is running or about to start; its hint says which |
+| A map | A toggle |
+
+Starting counts down 5 seconds in chat, cancelled by a map change or match start. The vote lasts `EndOfMap.VoteDuration` seconds, drops ticked maps in cooldown, and its winner is played when the match ends.
+
+### Keys
+
+Defaults: **Shift** up, **F** down, **E** select, **Tab** close. Set them in SwiftlyS2's `configs/menus/menus.jsonc` (template: `menus.example.jsonc`), under `Menus`: in `"core.menu"` for every menu, or in a block named by a menu's [id](#menus) for that menu.
+
+**Map cycle** rows also take `MoveUp`, `MoveDown` and `Remove`, unbound by default. Bound, they act on the highlighted map without opening its page, and a moved map stays highlighted, so the same key moves it on:
+
 ```jsonc
 {
-    "MapChooserMaps": {
-        "Maps": [
-            {
-                "Name": "Dust II",
-                "Id": "de_dust2",
-                "MinPlayers": 4
-            },
-            {
-                "Name": "Inferno Night",
-                "Id": "3124567099",
-                "MinPlayers": 4
-            },
-            {
-                "Name": "Mirage",
-                "Id": "de_mirage",
-                "MinPlayers": 1,
-                "MaxPlayers": 3
-            },
-            {
-                "Name": "Overpass",
-                "Id": "de_overpass",
-                "MinPlayers": 1,
-                "MaxPlayers": 3
-            }
-        ]
+  "Menus": {
+    "mapchooser.cycle": {
+      "MoveUp": "space",
+      "MoveDown": "ctrl",
+      "Remove": "alt"
     }
+  }
 }
 ```
 
-In this example, when there are 1–3 real players on the server, only `Mirage` and `Overpass` will appear in votes and nominations. Once there are 4+ players, only `Dust II` and `Inferno Night` will be available.
+---
 
-## Map Cycle
+## ⚙️ Configuration
 
-When a match ends and no end-of-map vote fires, the plugin can automatically advance to the next map in the cycle. This is controlled by `Cycle.Enabled` and is **disabled by default** — enable it explicitly if you want the rotation. The cycle order follows `maps.jsonc` by default; set `Cycle.RandomOrder` to `true` to pick the next map at random from the cycle instead. Maps in cooldown are skipped either way. Use `!cyclemenu` to view the order, move maps up/down, or remove them in-game. Use `!addmap` / `!removemap` to manage the list from chat — changes persist to disk immediately.
+Created on first start in `addons/swiftlys2/configs/plugins/MapChooser/`:
 
-## Menus
+| File | Holds |
+|------|-------|
+| `config.jsonc` | The settings below, under `MapChooser` |
+| `maps.jsonc` | The map pool, under `MapChooserMaps` — [maps.jsonc](#mapsjsonc) |
 
-`!maps` opens the map menu, built for each player as it opens. Its entries, in order:
+MapChooser reads both files only when it loads: **restart** the server after editing them. Keys missing from `config.jsonc` are added with their defaults.
 
-| Entry | Shown |
-| :--- | :--- |
-| Vote | While a vote is running, to players who may vote in it. Reopens the ballot, as `!revote` does. Left out when `DisableVoteMenuExit` is on. |
-| Nominate | While `Rtv.NominationEnabled` is on. |
-| Change map | With `ChangeMapPermission`. |
-| Set next map | With `SetNextMapPermission`. |
-| Start a vote | With `MapsVotePermission`. |
-| Map cycle | With `Cycle.CycleMenuPermission`. |
+### Rtv
 
-A divider separates the admin entries from Vote and Nominate. A player with no entries gets a line in chat instead.
+`!rtv` starts a vote once `VotePercentage` of players have used it, rounded up: 6 of 10 at `60`.
 
-Every page in the map menu opens as its child — from the menu, from its own command (`!nominate`, `!revote`, `!map`, `!setnextmap`, `!mapsvote`, `!cyclemenu`) or when a vote starts — so a page's close key goes back to the map menu. A page that has done its job — a vote cast, a map nominated or picked, a vote started — still closes outright. Opened from the menu, a page runs its command's checks first, with the same chat replies: Nominate refuses during warmup and to spectators, as `!nominate` does. Two menus open on their own: the ballot when `DisableVoteMenuExit` is on, so the map menu is no way out of it, and `!votemap`, which is not in the map menu.
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Enabled` | `true` | Allow `!rtv` and `!unrtv` |
+| `EnabledInWarmup` | `false` | Allow them in warmup |
+| `NominationEnabled` | `true` | Allow `!nominate` and **Nominate** |
+| `MinPlayers` | `0` | Humans needed on the server. `0` = no minimum |
+| `MinRounds` | `0` | Rounds to play first. `0` = no minimum |
+| `ChangeMapImmediately` | `true` | Change map when the vote ends. `false` = at round end |
+| `ChangeMapDelay` | `3` | Seconds' countdown to the change |
+| `MapsToShow` | `6` | Maps on the ballot, at most |
+| `VoteDuration` | `30` | Seconds the vote is open |
+| `VotePercentage` | `60` | Players, in %, whose `!rtv` starts it |
+| `VoteCooldownTime` | `300` | Seconds `!rtv` waits after a vote nobody voted in |
 
-The nominate page lists every map in the pool but the current one. A map that cannot be nominated right now is greyed out, with the reason as its hint: played recently, or too few or too many players for it.
+### Votemap
 
-The Start a vote page (`!mapsvote`) lists every map in the pool as a toggle; ticking one changes it in place, so the page stays where it was. Its start button counts the ticked maps, and its hint says what it does. It stays disabled until a map is ticked, and while a vote is running or counting down to open, when its hint says so instead. Starting closes the page and counts down five seconds in chat before the vote opens; a map change or match start during the countdown cancels it.
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Enabled` | `true` | Allow `!votemap` |
+| `VotePercentage` | `60` | Players, in %, who must pick the same map |
+| `ChangeMapImmediately` | `false` | Change map at once. `false` = when the match ends |
+| `MinPlayers` | `0` | Humans needed on the server. `0` = no minimum |
 
-## Features
+### EndOfMap
 
-- **Live Vote Counts**: With `AnnounceVotes`, every ballot is announced in chat with the map's running count, and the whole tally is published to other plugins through the [Shared API](#shared-api), so a HUD or menu plugin can draw it live.
-- **Map Menu**: `!maps` gathers the vote, nominations and the admin pages in one [menu](#menus).
-- **Smart Triggers**: Automated votes trigger based on time remaining, rounds remaining, or when a team is close to winning.
-- **Map Cooldown**: Prevents recently played maps from appearing in the vote too soon.
-- **Map Extension**: Players can vote to extend the current map time or round limit.
-- **Spectator Control**: Configurable option to allow or disallow spectators from voting.
-- **Vote Removal**: Players can change their mind and remove their RTV vote with `!unrtv`.
-- **Workshop Support**: Seamlessly change to workshop maps using their IDs.
-- **Localized**: Full translation support via JSONC files.
+The vote that opens on its own near the end of the map. Its winner is played when the match ends.
 
-## Installation
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Enabled` | `true` | Hold the end-of-map vote |
+| `MapsToShow` | `6` | Maps on the ballot, at most, besides **Extend Current Map** |
+| `VoteDuration` | `30` | Seconds the vote is open. `!mapsvote` votes too |
+| `ChangeMapDelay` | `5` | Seconds' countdown to any map change an RTV vote didn't decide, `!map` included |
+| `TriggerSecondsBeforeEnd` | `120` | Open it with this many seconds of `mp_timelimit` left |
+| `TriggerRoundsBeforeEnd` | `4` | Open it with this many rounds of `mp_maxrounds` left, or a team this many wins from winning |
+| `AllowExtend` | `true` | Offer **Extend Current Map** while extends are left |
+| `ExtendTimeStep` | `15` | Minutes an extend adds to `mp_timelimit`, if set |
+| `ExtendRoundStep` | `5` | Rounds an extend adds to `mp_maxrounds`, if set. `mp_winlimit`, if set, rises by half, rounded up |
+| `ExtendLimit` | `3` | Extends per map, by vote and `!ext` together |
 
-1. Download the latest release or build the plugin yourself.
-2. Copy the published plugin folder to your server:
-   `.../game/csgo/addons/swiftlys2/plugins/MapChooser/`
-3. Keep the plugin's `resources/` folder alongside the DLL. It includes `resources/exports/MapChooser.Contract.dll`, which other plugins use to read the vote (see [Shared API](#shared-api)).
-4. Start/restart the server.
+### ExtendMap
 
-## Building
+`!ext` extends the map by the [EndOfMap](#endofmap) steps once `VotePercentage` of players have used it.
 
-- Open the project in your preferred .NET IDE (e.g., VS Code, Visual Studio).
-- Build the project. The output DLL and resources will be placed in the `build/` directory.
-- Building `MapChooser.csproj` builds `MapChooser.Contract` first and copies `MapChooser.Contract.dll` into `build/net10.0/resources/exports/` and beside `MapChooser.dll`. `dotnet publish -c Release` does the same under `build/publish/MapChooser/` and zips the result to `build/MapChooser.zip`.
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Enabled` | `true` | Allow `!ext` |
+| `EnabledInWarmup` | `false` | Allow it in warmup |
+| `MinPlayers` | `0` | Humans needed on the server. `0` = no minimum |
+| `MinRounds` | `0` | Rounds to play first. `0` = no minimum |
+| `VotePercentage` | `60` | Players, in %, whose `!ext` extends the map |
 
-## Shared API
+### Cycle
 
-MapChooser publishes the running map vote to other plugins, read-only, as the shared interface `MapChooser.Api.v1`: the ballot and its tally, the vote's clock and voters, the time left on the map, the nominations, and whether each map can be picked right now. A HUD or menu plugin draws vote counts, share bars, each player's pick and a post-vote tally from it; MapChooser's own menus stay renderer-agnostic and show none of that.
+With `Enabled` on, a match that ends with no vote running and no next map decided changes to the map after the current one in `maps.jsonc`, ignoring cooldown and player limits. `!addmap`, `!removemap` and **Map cycle** change the pool at once and rewrite `maps.jsonc`, dropping its comments.
 
-The contract is `MapChooser.Contract.dll` (namespace `MapChooser.Contract`, interface `IMapChooserApi`). It ships in `resources/exports/` and, as a fallback for an install on an already-running server, beside `MapChooser.dll`.
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `Enabled` | `false` | Change to the next map when the match ends |
+| `RandomOrder` | `false` | A random map other than the current one instead |
+| `AddMapPermission` | `"admin.changemap"` | Permission for `!addmap` |
+| `RemoveMapPermission` | `"admin.changemap"` | Permission for `!removemap` |
+| `CycleMenuPermission` | `"admin.changemap"` | Permission for `!cyclemenu` and **Map cycle** |
+
+### MapChooser
+
+Keys directly under `MapChooser`.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `MapsInCooldown` | `3` | Previous maps kept off ballots, nominations and `!votemap`. `0` = none. Forgotten on restart |
+| `AllowSpectatorsToVote` | `false` | Let spectators vote, nominate and use `!rtv`, `!votemap` and `!ext`. They then count in every share |
+| `AnnounceVotes` | `true` | Announce each `!rtv`, `!votemap` and ballot, with counts. `false` = only the voter hears of their ballot |
+| `DisableVoteMenuExit` | `false` | Ballot with no close key. It closes once the player votes |
+| `DetailedLogging` | `false` | Log map-change decisions to the console |
+| `SetNextMapPermission` | `"admin.changemap"` | Permission for `!setnextmap` and **Set next map** |
+| `MapsVotePermission` | `"admin.mapsvote"` | Permission for `!mapsvote` and **Start a vote** |
+| `ChangeMapPermission` | `"admin.changemap"` | Permission for `!map` and **Change map** |
+
+### Commands
+
+Each value is a comma-separated list, and every name in it is registered as its own command; `""` registers none. A name an earlier setting already registered is skipped, with a line in the console.
+
+| Setting | Default |
+|---------|---------|
+| `Menu` | `"maps,mapmenu"` |
+| `Rtv` | `"rtv"` |
+| `UnRtv` | `"unrtv"` |
+| `Nominate` | `"nominate,nom,yd"` |
+| `Timeleft` | `"timeleft"` |
+| `Nextmap` | `"nextmap"` |
+| `Votemap` | `"votemap"` |
+| `Revote` | `"revote"` |
+| `SetNextMap` | `"setnextmap"` |
+| `Extend` | `"ext,extendmap"` |
+| `MapsVote` | `"mapsvote"` |
+| `ChangeMap` | `"map,setmap"` |
+| `MapList` | `"maplist"` |
+| `AddMap` | `"addmap"` |
+| `RemoveMap` | `"removemap"` |
+| `CycleMenu` | `"cyclemenu,mapcycle"` |
+
+### maps.jsonc
+
+`Maps`, under `MapChooserMaps`, lists the map pool in cycle order. It is empty on first start.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `Name` | — | Shown in menus and chat |
+| `Id` | — | The map to load: a map name, `"de_dust2"`, or a workshop ID, `"3124567099"` or `"ws:3124567099"` |
+| `MinPlayers` | `0` | Humans on the server before the map is offered. `0` = no minimum |
+| `MaxPlayers` | `0` | Most humans the map is offered with. `0` = no maximum |
+
+```jsonc
+{
+  "MapChooserMaps": {
+    "Maps": [
+      {
+        "Name": "Dust II",
+        "Id": "de_dust2",
+        "MinPlayers": 4
+      },
+      {
+        "Name": "Mirage",
+        "Id": "de_mirage",
+        "MaxPlayers": 3
+      }
+    ]
+  }
+}
+```
+
+With up to 3 humans on the server, votes and nominations offer only Mirage; from 4, only Dust II.
+
+---
+
+## 📚 API reference
+
+`IMapChooserApi` in `MapChooser.Contract.dll`, namespace `MapChooser.Contract`, key `MapChooser.Api.v1` (`IMapChooserApi.InterfaceKey`). Read-only. Getting it: [Using the API](#-using-the-api).
+
+- Requires MapChooser 1.4.0+. Members marked 1.5.0+ or 1.6.0+ need that version; against an older one, a call into them throws `MissingMethodException`.
+- Read members on the game thread. Events are raised there once MapChooser has stored the change, so a handler reads the new state.
+- `VoteChanged` and `NominationsChanged` can fire inside map load, when a map change ends a vote or clears nominations: leave entities alone there.
+- A handler that throws is logged as a warning; the other handlers still run.
+- After MapChooser unloads, an instance you still hold reports no vote, maps or nominations, and raises nothing.
+
+### Vote
 
 | Member | Description |
-| :--- | :--- |
-| `const string InterfaceKey` | `"MapChooser.Api.v1"`. |
-| `const string ExtendOption` | `"map_chooser.extend_option"` — the ballot entry that extends the current map instead of changing it. |
-| `bool IsVoteActive` | `true` while an end-of-map, RTV or `!mapsvote` ballot is open. |
-| `IReadOnlyList<string> VoteOptions` | The ballot in menu order: map names, plus `ExtendOption` when extending is offered. Empty when no vote is running. |
-| `int GetVoteCount(string option)` | Votes for one ballot entry; `0` for an option not on the ballot, or when no vote is running. |
-| `int TotalVotes` | Ballots cast in the running vote — the sum of every `GetVoteCount`. |
-| `string? GetPlayerVote(int playerSlot)` | The option that player voted for, or `null`. |
-| `event Action? VoteChanged` | The tally changed: a vote started; a ballot was cast, changed or withdrawn (`!unrtv`); or the vote ended or was cancelled, including by a map change or the match going live. |
-| `event Action<int, string>? PlayerVoted` | A player cast or changed a ballot: `(playerSlot, option)`. Raised right after that ballot's `VoteChanged`. |
-| `IReadOnlyList<MapChooserMap> Maps` | The map pool in config order. |
-| `MapChooserMap? GetMap(string name)` | A pool map by the name its menus and ballot show (case-insensitive); `null` for any other name, `ExtendOption` included. |
-| `int VoteSecondsLeft` | Seconds until the running vote closes, rounded up; `0` when no vote is running. |
-| `int EligibleVoters` | Players who may vote in the running vote: connected humans, spectators only with `AllowSpectatorsToVote`. `0` when no vote is running. |
-| `int ExtendsLeft` | How many more times the current map can be extended. |
-| `int ExtendMinutes` | Minutes an extend adds to `mp_timelimit` (`EndOfMap.ExtendTimeStep`); `0` when the map has no time limit. |
-| `int ExtendRounds` | Rounds an extend adds to `mp_maxrounds` (`EndOfMap.ExtendRoundStep`); `0` when the map has no round limit. |
-| `int? MapSecondsLeft` | Seconds left on the map under `mp_timelimit`, as `!timeleft` counts them, never below `0`; `null` without a time limit or during warmup. |
-| `int? MapRoundsLeft` | Rounds left under `mp_maxrounds`, the one being played included, as `!timeleft` counts them, never below `0`; `null` without a round limit or during warmup. |
-| `IReadOnlyList<string> Nominations` | The maps nominated for the next vote, each once, by the name `GetMap` takes. |
-| `string? GetPlayerNomination(int playerSlot)` | The map that player nominated, or `null`. |
-| `event Action? NominationsChanged` | A nomination was made, replaced or cleared. Nominations clear on every map load. |
-| `MapChooserAvailability GetAvailability(string name)` | Whether a pool map can be nominated or voted for now, and if not, why. |
+|--------|-------------|
+| `const string ExtendOption` | `"map_chooser.extend_option"`, the ballot entry that extends the map |
+| `bool IsVoteActive { get; }` | Whether a vote is running: end of map, RTV or `!mapsvote` |
+| `IReadOnlyList<string> VoteOptions { get; }` | The ballot in menu order: map names, plus `ExtendOption` when offered. Empty with no vote |
+| `int GetVoteCount(string option)` | Ballots for an option. `0` off the ballot or with no vote |
+| `int TotalVotes { get; }` | Ballots cast in the running vote |
+| `string? GetPlayerVote(int playerSlot)` | That player's option, or `null` |
+| `int VoteSecondsLeft { get; }` | Seconds until the vote closes, rounded up. `0` with no vote. 1.5.0+ |
+| `int EligibleVoters { get; }` | Players who may vote: humans, spectators only with `AllowSpectatorsToVote`. `0` with no vote. 1.5.0+ |
+| `event Action? VoteChanged` | A vote started, ended or was cancelled, or a ballot was cast, changed or withdrawn |
+| `event Action<int, string>? PlayerVoted` | `(playerSlot, option)` of a ballot cast or changed, after its `VoteChanged` |
 
-`MapChooserMap(Name, MapName, WorkshopId, MinPlayers, MaxPlayers)`: `Name` is what menus show; `MapName` is the map the server loads (`de_dust2`, `null` for a workshop map); `WorkshopId` is the Steam Workshop ID (`null` otherwise); `0` means no player limit.
+### Map pool
 
-`MapChooserAvailability`, checked in this order: `NotInPool` (any name `GetMap` does not resolve, `ExtendOption` included); `CurrentMap` (the map being played); `Cooldown` (one of the last `MapsInCooldown` maps); `TooFewPlayers` / `TooManyPlayers` (outside its `MinPlayers` / `MaxPlayers`, bots not counted); otherwise `Available`.
-
-`MapChooserMenuIds` holds the ids of MapChooser's menus: `Hub` (`mapchooser.hub`), `Vote` (`mapchooser.eof-vote`), `LockedVote` (`mapchooser.eof-vote.locked`), `Nominate` (`mapchooser.nominate`), `Votemap` (`mapchooser.votemap`), `ChangeMap` (`mapchooser.admin-change-map`), `SetNextMap` (`mapchooser.set-next-map`), `StartVote` (`mapchooser.admin-maps-vote`) and `Cycle` (`mapchooser.cycle`).
-
-- **Needs MapChooser 1.5.0 for the newer members.** Everything in the table from `VoteSecondsLeft` on, `MapChooserAvailability` and `MapChooserMenuIds` came with MapChooser 1.5.0 (contract 1.1). An older MapChooser exports contract 1.0, and a call into a member it lacks throws `MissingMethodException`.
-- **Threading.** Every event is raised on the game thread once MapChooser has stored the change — by `PlayerVoted`, the voter's vote menu is already closed — so a handler reads the new state. Read the members on the game thread too. A vote cut short by a map change raises `VoteChanged`, and the nominations' reset raises `NominationsChanged`, from inside map load: read the API there, but leave entities alone.
-- **A throwing handler is contained.** It is logged as a warning and skipped; other subscribers and the vote carry on.
-- **Subscribe in the handshake, every time.** SwiftlyS2 re-runs `ConfigureSharedInterface` on every plugin load and unload, and MapChooser drops all subscriptions there, as SwiftlyS2's shared-API guidance asks of APIs with events. Subscribe in `UseSharedInterface` or `OnSharedInterfaceInjected` on every call, not once in `Load`. After MapChooser unloads, an instance you still hold reports no vote and raises nothing.
-- **Do not ship the contract.** Reference `MapChooser.Contract` with `Private="false"`: a second copy gives `IMapChooserApi` a second type identity, and `TryGetSharedInterface` stops matching. If MapChooser may be absent, the contract DLL is absent too, and the JIT fails any method that names `IMapChooserApi` — hold the API as `object?` and keep those methods `[MethodImpl(MethodImplOptions.NoInlining)]`, reached only after `HasSharedInterface("MapChooser.Api.v1")` returned `true`.
-- **Menu rows carry their map.** Each row of the vote menu has its ballot option as the component's `Tag` (the map name, or `ExtendOption`), so a renderer can match a row to `GetVoteCount` and `GetPlayerVote`. The nominate, `!votemap`, change-map, set-next-map, `!mapsvote` and map cycle menus tag each row with its map's name too, for `GetMap`. A nominate row for a map that cannot be nominated now is disabled, with the reason, translated, as its `Comment`; `GetAvailability` gives the same answer as data. On the Start a vote page each map is a `ToggleComponent`, ticked or not per player, and the start button is the page's one `ButtonComponent`; its hint (`GetHint`) says what it does, or why it can't start a vote now.
-- **The map menu is navigation.** Each entry of the hub is a plain `SubmenuComponent` whose `Id` is its page's `MapChooserMenuIds` id, and every page in the hub opens with the hub as its `Parent` — the locked ballot excepted (see [Menus](#menus)) — so a renderer can draw the hub's entries beside whichever page is open.
+| Member | Description |
+|--------|-------------|
+| `IReadOnlyList<MapChooserMap> Maps { get; }` | The pool, in `maps.jsonc` order |
+| `MapChooserMap? GetMap(string name)` | A pool map by the name menus show, case-insensitive. `null` for any other name, `ExtendOption` included |
+| `MapChooserAvailability GetAvailability(string name)` | Whether a pool map can be nominated or voted for now, and if not, why. 1.5.0+ |
+| `string? NextMap { get; }` | The next map, as `!nextmap` reports it: a vote's or an admin's pick, else the cycle's next while `Cycle.Enabled` is on and `RandomOrder` off. `null` while undecided. 1.6.0+ |
 
 ```csharp
-// MapChooser installed alongside: the plain binder. Otherwise isolate it, as above.
+public sealed record MapChooserMap(string Name, string? MapName, string? WorkshopId, int MinPlayers, int MaxPlayers);
+```
+
+`MapName` is the map the server loads, `null` for a workshop map, which has a `WorkshopId` instead. `0` = no player limit. `MapChooserAvailability` (1.5.0+), in check order: `NotInPool` (a name `GetMap` doesn't resolve), `CurrentMap`, `Cooldown`, `TooFewPlayers`, `TooManyPlayers` (bots not counted), else `Available`.
+
+### Map clock and extends
+
+Requires MapChooser 1.5.0+.
+
+| Member | Description |
+|--------|-------------|
+| `int ExtendsLeft { get; }` | Extends left on this map |
+| `int ExtendMinutes { get; }` | Minutes an extend adds: `EndOfMap.ExtendTimeStep`. `0` without `mp_timelimit` |
+| `int ExtendRounds { get; }` | Rounds an extend adds: `EndOfMap.ExtendRoundStep`. `0` without `mp_maxrounds` |
+| `int? MapSecondsLeft { get; }` | Seconds left, as `!timeleft` counts them, never below `0`. `null` without `mp_timelimit`, or in warmup |
+| `int? MapRoundsLeft { get; }` | Rounds left, the current one included, as `!timeleft` counts them, never below `0`. `null` without `mp_maxrounds`, or in warmup |
+
+### Nominations
+
+Requires MapChooser 1.5.0+.
+
+| Member | Description |
+|--------|-------------|
+| `IReadOnlyList<string> Nominations { get; }` | Maps nominated for the next vote, each once, by the name `GetMap` takes |
+| `string? GetPlayerNomination(int playerSlot)` | That player's nomination, or `null` |
+| `event Action? NominationsChanged` | A nomination was made, replaced or cleared. They clear on every map load |
+
+### Menus
+
+`MapChooserMenuIds` (1.5.0+), each a `const string`:
+
+| Member | Description |
+|--------|-------------|
+| `Hub` | `"mapchooser.hub"`, the map menu |
+| `Vote` | `"mapchooser.eof-vote"`, the ballot |
+| `LockedVote` | `"mapchooser.eof-vote.locked"`, the ballot with `DisableVoteMenuExit` on |
+| `Nominate` | `"mapchooser.nominate"` |
+| `Votemap` | `"mapchooser.votemap"`, not in the map menu |
+| `ChangeMap` | `"mapchooser.admin-change-map"` |
+| `SetNextMap` | `"mapchooser.set-next-map"` |
+| `StartVote` | `"mapchooser.admin-maps-vote"` |
+| `Cycle` | `"mapchooser.cycle"` |
+| `CycleMap` | `"mapchooser.cycle-map-actions"`, a map's page. 1.6.0+ |
+| `CycleRemove` | `"mapchooser.cycle-remove-confirm"`, **Yes, Remove** then **Cancel**. 1.6.0+ |
+
+`MapChooserCycleActions` (1.6.0+): `MoveUp`, `MoveDown` and `Remove`, which a `Cycle` row takes besides Select. Declared with no key; a server binds them — [Keys](#keys) — and a renderer sends one through `IMenuComponent.HandleActionAsync`. A row returns `false` for a move its map can't make. `Remove` opens `CycleRemove`.
+
+For a renderer:
+
+- Ballot rows carry their option as `Tag`, a map name or `ExtendOption`, for `GetVoteCount` and `GetPlayerVote`. Map rows elsewhere carry the map's name, for `GetMap`.
+- A `Nominate` row that can't be picked is disabled, with its translated reason as `Comment`; `GetAvailability` gives it as data.
+- On `StartVote`, maps are `ToggleComponent`s, ticked per player; the start button is the one `ButtonComponent`, and its `GetHint` says what it does or why it can't.
+- `Hub` entries are `SubmenuComponent`s whose `Id` is their page's id. Pages open with `Hub` as their `Parent`, `LockedVote` excepted.
+
+---
+
+## 🧩 Using the API
+
+### 1. Reference the contract
+
+`MapChooser.Contract.dll` is in the release, under `resources/exports/`.
+
+```xml
+<Reference Include="MapChooser.Contract">
+  <HintPath>path\to\MapChooser.Contract.dll</HintPath>
+  <Private>false</Private>
+</Reference>
+```
+
+`Private` must be `false`: a copy beside your plugin can load as a second `IMapChooserApi` that never resolves, with no build error.
+
+### 2. Get the interface
+
+SwiftlyS2 re-runs `UseSharedInterface` whenever a plugin loads or unloads, and MapChooser drops every subscriber just before: subscribe on every run. While MapChooser isn't loaded, the field is `null`.
+
+```csharp
+private IMapChooserApi? _mapChooser;
+
 public override void UseSharedInterface(IInterfaceManager interfaceManager)
 {
-    interfaceManager.TryGetSharedInterface<IMapChooserApi>(IMapChooserApi.InterfaceKey, out _mapChooser);
-    if (_mapChooser is null) return;
+    if (!interfaceManager.TryGetSharedInterface<IMapChooserApi>(IMapChooserApi.InterfaceKey, out _mapChooser))
+        return;
 
-    // MapChooser cleared its subscribers before this ran, so these never double up.
     _mapChooser.VoteChanged += OnVoteChanged;
     _mapChooser.PlayerVoted += OnPlayerVoted;
 }
 ```
+
+### When MapChooser is optional
+
+Without MapChooser, `MapChooser.Contract.dll` is missing, and a method that names a contract type throws as soon as it is compiled — in its caller, where its own `try` can't catch it. From `UseSharedInterface`, that stops the handshake for every plugin after yours. Hold the API as `object?`, name the contract types in one class only, mark its methods `[MethodImpl(MethodImplOptions.NoInlining)]`, and call into it only once `HasSharedInterface("MapChooser.Api.v1")` is `true`.
+
+### Checklist
+
+- [ ] `MapChooser.Contract` referenced with `Private` set to `false`
+- [ ] Events subscribed in `UseSharedInterface`, on every run, and a `null` interface handled
+- [ ] Game thread only, and no entities touched by handlers during map load
+- [ ] Members marked 1.5.0+ or 1.6.0+ used only with that MapChooser
+- [ ] Contract types in one `NoInlining` class, held as `object?`, if MapChooser is optional
+
+---
+
+## 🔧 Building
+
+### Requirements
+
+| What | Version |
+|------|---------|
+| .NET SDK | 10 |
+| SwiftlyS2 | Restored from NuGet |
+
+### Build
+
+```bash
+git clone https://github.com/SwiftlyS2-Plugins/MapChooser.git
+cd MapChooser
+dotnet publish -c Release
+```
+
+This writes the plugin to `build/publish/MapChooser/`, with `MapChooser.Contract.dll` in `resources/exports/` and beside `MapChooser.dll`, and zips it to `build/MapChooser.zip`. Unzip that into `addons/swiftlys2/plugins/`.
+
+---
+
+## 🩺 Troubleshooting
+
+Most console lines start with `MapChooser:`. `DetailedLogging` adds map-change decisions.
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `!maplist` replies `There are no maps configured.` | `maps.jsonc` is empty, as on first start | List maps — [maps.jsonc](#mapsjsonc) — and restart, or use `!addmap` |
+| An edit to `config.jsonc` or `maps.jsonc` did nothing | Both are read only when MapChooser loads | Restart the server |
+| `MapChooser: Commands.MapList lists 'maps', which Commands.Menu already registers, so it was skipped; it can be removed from config.jsonc.` | An older `config.jsonc` has `MapList` `"maplist,maps"` | Expected: `!maps` opens the map menu. Remove `maps` from `MapList` to silence it |
+| `!rtv`, `!nominate`, `!votemap` or `!ext` does nothing, with no reply | `Rtv.Enabled`, `Rtv.NominationEnabled`, `Votemap.Enabled` or `ExtendMap.Enabled` is `false` | Set it `true` |
+| `Command disabled during warmup.` | `Rtv.EnabledInWarmup` or `ExtendMap.EnabledInWarmup` is `false`. `!nominate` and `!timeleft` never work in warmup | Set it `true`, or wait for warmup to end |
+| `You cannot vote while in spectator.` | `AllowSpectatorsToVote` is `false` | Join a team, or set it `true` |
+| No end-of-map vote | `EndOfMap.Enabled` is `false`, or the map has no `mp_timelimit`, `mp_maxrounds` or `mp_winlimit` | Set it `true`, or set a limit |
+| The cycle picks a recent map, or one outside its player limits | The cycle ignores `MapsInCooldown`, `MinPlayers` and `MaxPlayers` | Expected |
+| `!map` or `!votemap` also runs another plugin's command | Another plugin registers the same name, such as Admins with `map` and `votemap`. SwiftlyS2 runs both | Remove the name from one plugin: here, from `Commands.ChangeMap` or `Commands.Votemap` |
+| `MapChooser: a <event> subscriber (<type>) threw; the vote is unaffected.` | Another plugin's handler failed | Report it to that plugin |
+
+---
+
+## 🤝 Report issues or request features
+
+- **Issues**: [GitHub Issues](https://github.com/SwiftlyS2-Plugins/MapChooser/issues)

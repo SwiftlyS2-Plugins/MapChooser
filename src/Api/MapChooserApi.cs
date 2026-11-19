@@ -20,6 +20,7 @@ internal sealed class MapChooserApi : IMapChooserApi
     private PluginState? _state;
     private MapCooldown? _cooldown;
     private MapChooserConfig? _config;
+    private MapCycleManager? _cycle;
     private ISwiftlyCore? _core;
     private ILogger? _logger;
 
@@ -65,13 +66,19 @@ internal sealed class MapChooserApi : IMapChooserApi
         return MapAvailability.Of(_core, _cooldown, map);
     }
 
+    // !nextmap's answer: the cycle's next counts only while the cycle would actually change to it.
+    public string? NextMap
+        => _state?.NextMap is { Length: > 0 } decided ? decided
+            : _config?.Cycle.Enabled == true ? _cycle?.PreviewNextMap()?.Name
+            : null;
+
     public event Action? VoteChanged;
 
     public event Action<int, string>? PlayerVoted;
 
     public event Action? NominationsChanged;
 
-    internal void Attach(EndOfMapVoteManager manager, MapLister maps, PluginState state, MapCooldown cooldown, MapChooserConfig config, ISwiftlyCore core, ILogger logger)
+    internal void Attach(EndOfMapVoteManager manager, MapLister maps, PluginState state, MapCooldown cooldown, MapChooserConfig config, MapCycleManager cycle, ISwiftlyCore core, ILogger logger)
     {
         Unwire();
         _logger = logger;
@@ -80,6 +87,7 @@ internal sealed class MapChooserApi : IMapChooserApi
         _state = state;
         _cooldown = cooldown;
         _config = config;
+        _cycle = cycle;
         _core = core;
         manager.VoteChanged += ForwardVoteChanged;
         manager.PlayerVoted += ForwardPlayerVoted;
@@ -93,6 +101,7 @@ internal sealed class MapChooserApi : IMapChooserApi
         _maps = null;
         _cooldown = null;
         _config = null;
+        _cycle = null;
         _core = null;
         ClearSubscribers();
     }
