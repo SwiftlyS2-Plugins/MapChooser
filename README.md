@@ -182,6 +182,18 @@ In this example, when there are 1–3 real players on the server, only `Mirage` 
 
 When a match ends and no end-of-map vote fires, the plugin can automatically advance to the next map in the cycle. This is controlled by `Cycle.Enabled` and is **disabled by default** — enable it explicitly if you want the rotation. The cycle order follows `maps.jsonc` by default; set `Cycle.RandomOrder` to `true` to pick the next map at random from the cycle instead. Maps in cooldown are skipped either way. Use `!cyclemenu` to view the order, move maps up/down, or remove them in-game. Use `!addmap` / `!removemap` to manage the list from chat — changes persist to disk immediately.
 
+Selecting a map in `!cyclemenu` opens its page: Move Up, Move Down, Remove and Back. The rows also take those three as actions of their own, with no key by default. Bind one under the menu's id in SwiftlyS2's `configs/menus/menus.jsonc` to act on the focused map without opening its page:
+
+```jsonc
+{
+  "Menus": {
+    "mapchooser.cycle": { "MoveUp": "Space", "MoveDown": "Ctrl", "Remove": "Alt" }
+  }
+}
+```
+
+A moved map keeps the focus, so the same key moves it on. Removing asks first, then returns to the list. A map's page and the removal question open under the list, so their close key goes back to it.
+
 ## Menus
 
 `!maps` opens the map menu, built for each player as it opens. Its entries, in order:
@@ -259,14 +271,17 @@ The contract is `MapChooser.Contract.dll` (namespace `MapChooser.Contract`, inte
 | `string? GetPlayerNomination(int playerSlot)` | The map that player nominated, or `null`. |
 | `event Action? NominationsChanged` | A nomination was made, replaced or cleared. Nominations clear on every map load. |
 | `MapChooserAvailability GetAvailability(string name)` | Whether a pool map can be nominated or voted for now, and if not, why. |
+| `string? NextMap` | The map the server changes to next, as `!nextmap` reports it: a vote's or an admin's pick, else the cycle's next map while `Cycle.Enabled` is on and the order is not random. `null` while undecided. |
 
 `MapChooserMap(Name, MapName, WorkshopId, MinPlayers, MaxPlayers)`: `Name` is what menus show; `MapName` is the map the server loads (`de_dust2`, `null` for a workshop map); `WorkshopId` is the Steam Workshop ID (`null` otherwise); `0` means no player limit.
 
 `MapChooserAvailability`, checked in this order: `NotInPool` (any name `GetMap` does not resolve, `ExtendOption` included); `CurrentMap` (the map being played); `Cooldown` (one of the last `MapsInCooldown` maps); `TooFewPlayers` / `TooManyPlayers` (outside its `MinPlayers` / `MaxPlayers`, bots not counted); otherwise `Available`.
 
-`MapChooserMenuIds` holds the ids of MapChooser's menus: `Hub` (`mapchooser.hub`), `Vote` (`mapchooser.eof-vote`), `LockedVote` (`mapchooser.eof-vote.locked`), `Nominate` (`mapchooser.nominate`), `Votemap` (`mapchooser.votemap`), `ChangeMap` (`mapchooser.admin-change-map`), `SetNextMap` (`mapchooser.set-next-map`), `StartVote` (`mapchooser.admin-maps-vote`) and `Cycle` (`mapchooser.cycle`).
+`MapChooserMenuIds` holds the ids of MapChooser's menus: `Hub` (`mapchooser.hub`), `Vote` (`mapchooser.eof-vote`), `LockedVote` (`mapchooser.eof-vote.locked`), `Nominate` (`mapchooser.nominate`), `Votemap` (`mapchooser.votemap`), `ChangeMap` (`mapchooser.admin-change-map`), `SetNextMap` (`mapchooser.set-next-map`), `StartVote` (`mapchooser.admin-maps-vote`), `Cycle` (`mapchooser.cycle`), and the two pages under a cycle row: `CycleMap` (`mapchooser.cycle-map-actions`) and `CycleRemove` (`mapchooser.cycle-remove-confirm`, Yes then Cancel).
 
-- **Needs MapChooser 1.5.0 for the newer members.** Everything in the table from `VoteSecondsLeft` on, `MapChooserAvailability` and `MapChooserMenuIds` came with MapChooser 1.5.0 (contract 1.1). An older MapChooser exports contract 1.0, and a call into a member it lacks throws `MissingMethodException`.
+`MapChooserCycleActions` names what a row of the `Cycle` page takes besides Select: `MoveUp`, `MoveDown` and `Remove` (which opens the `CycleRemove` page). The page declares them in its own scope with no key, so a renderer can offer them on each row and send one through `IMenuComponent.HandleActionAsync`, as core sends a bound key. A row returns `false` for a move its map can't make: `MoveUp` on the first map, `MoveDown` on the last.
+
+- **Needs MapChooser 1.5.0 for the newer members.** Everything in the table from `VoteSecondsLeft` on, `MapChooserAvailability` and `MapChooserMenuIds` came with MapChooser 1.5.0 (contract 1.1); `NextMap`, `MapChooserCycleActions`, `CycleMap` and `CycleRemove` came with MapChooser 1.6.0 (contract 1.2). An older MapChooser exports an older contract, and a call into a member it lacks throws `MissingMethodException`.
 - **Threading.** Every event is raised on the game thread once MapChooser has stored the change — by `PlayerVoted`, the voter's vote menu is already closed — so a handler reads the new state. Read the members on the game thread too. A vote cut short by a map change raises `VoteChanged`, and the nominations' reset raises `NominationsChanged`, from inside map load: read the API there, but leave entities alone.
 - **A throwing handler is contained.** It is logged as a warning and skipped; other subscribers and the vote carry on.
 - **Subscribe in the handshake, every time.** SwiftlyS2 re-runs `ConfigureSharedInterface` on every plugin load and unload, and MapChooser drops all subscriptions there, as SwiftlyS2's shared-API guidance asks of APIs with events. Subscribe in `UseSharedInterface` or `OnSharedInterfaceInjected` on every call, not once in `Load`. After MapChooser unloads, an instance you still hold reports no vote and raises nothing.

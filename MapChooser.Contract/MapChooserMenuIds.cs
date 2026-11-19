@@ -27,4 +27,10 @@ public static class MapChooserMenuIds
     public const string StartVote = "mapchooser.admin-maps-vote";
 
     public const string Cycle = "mapchooser.cycle";
+
+    /// <summary>A map's own page, opened from a row of <see cref="Cycle"/> and under it: move it, remove it, or go back.</summary>
+    public const string CycleMap = "mapchooser.cycle-map-actions";
+
+    /// <summary>The question before a map leaves the cycle, under <see cref="Cycle"/>: Yes, then Cancel.</summary>
+    public const string CycleRemove = "mapchooser.cycle-remove-confirm";
 }

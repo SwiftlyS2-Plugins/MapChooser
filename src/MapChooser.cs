@@ -20,7 +20,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace MapChooser;
 
-[PluginMetadata(Id = "MapChooser", Version = "1.5.0", Name = "Map Chooser", Author = "aga", Description = "Map chooser plugin for SwiftlyS2")]
+[PluginMetadata(Id = "MapChooser", Version = "1.6.0", Name = "Map Chooser", Author = "aga", Description = "Map chooser plugin for SwiftlyS2")]
 public sealed class MapChooser : BasePlugin
 {
     private MapChooserConfig _config = new();
@@ -100,10 +100,10 @@ public sealed class MapChooser : BasePlugin
         _eofManager = new EndOfMapVoteManager(Core, _state, _rtvVoteManager, _mapLister, _mapCooldown, _changeMapManager, _extendManager, _config);
         _menus = new MapChooserMenus(Core, _config, _eofManager);
         _eofManager.Menus = _menus;
-        _api.Attach(_eofManager, _mapLister, _state, _mapCooldown, _config, Core, Core.Logger);
 
         var mapsFilePath = Core.Configuration.GetConfigPath("maps.jsonc");
         _cycleManager = new MapCycleManager(Core, _state, _mapLister, _changeMapManager, _config, mapsFilePath);
+        _api.Attach(_eofManager, _mapLister, _state, _mapCooldown, _config, _cycleManager, Core, Core.Logger);
 
         _state.ExtendsLeft = _config.EndOfMap.ExtendLimit;
         _state.NextEofVotePossibleRound = 0;
